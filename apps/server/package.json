@@ -1,0 +1,28 @@
+{
+    "name": "@mintd/server",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Express api server for Mintd platform using mongoose",
+    "main": "index.ts",
+    "scripts": {
+        "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+        "build": "tsc",
+        "start": "node dist/index.ts",
+        "lint": "eslint 'src/**/*.ts'",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "Chidube Anike",
+    "license": "ISC",
+    "dependencies": {
+        "dotenv": "^17.2.3",
+        "express": "^5.2.1",
+        "mongoose": "^9.0.1"
+    },
+    "devDependencies": {
+        "@types/express": "^5.0.6",
+        "@types/node": "^25.0.2",
+        "nodemon": "^3.1.11",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3"
+    }
+}

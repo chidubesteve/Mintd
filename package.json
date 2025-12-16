@@ -1,0 +1,32 @@
+{
+  "name": "mintd",
+  "version": "1.0.0",
+  "description": "Mintd — Web3 platform for luxury watch owners to verify ownership and mint verifiable ERC-721 digital certificates on Polygon.",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "contracts:compile": "turbo run compile --filter=@mintd/contracts",
+    "contracts:deploy": "turbo run deploy --filter=@mintd/contracts",
+    "lint": "turbo run lint",
+    "format": "turbo run format"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [],
+  "author": "Chidube Anike",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^25.0.2",
+    "eslint": "^9.39.2",
+    "prettier": "^3.7.4",
+    "turbo": "^2.6.3",
+    "typescript": "^5.9.3"
+  }
+}
