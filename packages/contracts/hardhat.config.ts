@@ -2,8 +2,15 @@ import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mo
 import hardhatVerify from "@nomicfoundation/hardhat-verify";
 import {  defineConfig } from "hardhat/config";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({
+  path: path.resolve(__dirname, "../../.env"),
+});
 
 export default defineConfig({
   plugins: [hardhatToolboxMochaEthersPlugin, hardhatVerify],
@@ -17,6 +24,10 @@ export default defineConfig({
     },
   },
   networks: {
+    localhost: {
+      type: "http",
+      url: "http://127.0.0.1:8545",
+    },
     amoy: {
       type: "http",
       url: process.env.AMOY_URL || "",
