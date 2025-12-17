@@ -15,6 +15,15 @@
     },
     "compile": {
       "outputs": ["artifacts/**", "cache/**", "types/**"]
+    },
+    "deploy": {
+      "dependsOn": ["compile"],
+      "outputs": [],
+      "cache": false
+    },
+    "node": {
+      "cache": false,
+      "persistent": true
     }
   }
 }
