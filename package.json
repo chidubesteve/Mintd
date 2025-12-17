@@ -11,6 +11,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "test": "turbo run test",
+    "contracts:node": "turbo run node --filter=@mintd/contracts",
     "contracts:compile": "turbo run compile --filter=@mintd/contracts",
     "contracts:deploy": "turbo run deploy --filter=@mintd/contracts",
     "lint": "turbo run lint",
@@ -19,6 +20,7 @@
   "engines": {
     "node": ">=18"
   },
+   "packageManager": "npm@10.9.3",
   "keywords": [],
   "author": "Chidube Anike",
   "license": "ISC",
