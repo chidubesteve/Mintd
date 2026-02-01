@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { ERC721 } from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import { IERC721 } from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {
     ERC721URIStorage
-} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+} from '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import {
     ERC721Pausable
-} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+} from '@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol';
+import { Ownable } from '@openzeppelin/contracts/access/Ownable.sol';
 
 /// @title MintdNFT – Luxury Watch Digital Certificate (MVP)
 /// @notice ERC-721 with admin-only minting, mediated transfers, and vault statuses
@@ -56,6 +56,8 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
     mapping(uint256 => WatchData) private _watchData;
     mapping(uint256 => TransferRequest) private _transferRequests;
     mapping(uint256 => bool) private _transfersAllowed;
+    // Enforces one NFT per serial number – prevents duplicate certificates
+    mapping(string => bool) private _serialNumberUsed;
 
     // ------------------ EVENTS ------------------
 
@@ -114,19 +116,19 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
     // ------------------ MODIFIERS ------------------
 
     modifier onlyAdmin() {
-        require(isAdmin[_msgSender()] || owner() == _msgSender(), "Not admin");
+        require(isAdmin[_msgSender()] || owner() == _msgSender(), 'Not admin');
         _;
     }
 
     modifier tokenExists(uint256 tokenId) {
-        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+        require(_ownerOf(tokenId) != address(0), 'Token does not exist');
         _;
     }
 
     modifier notStolen(uint256 tokenId) {
         require(
             _watchData[tokenId].status != WatchStatus.STOLEN,
-            "Token marked stolen"
+            'Token marked stolen'
         );
         _;
     }
@@ -135,21 +137,21 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
 
     constructor(
         address initialOwner
-    ) ERC721("MINTD", "MTND") Ownable(initialOwner) {
-        require(initialOwner != address(0), "Invalid owner");
+    ) ERC721('MINTD', 'MTND') Ownable(initialOwner) {
+        require(initialOwner != address(0), 'Invalid owner');
         _transferOwnership(initialOwner);
     }
 
     // ------------------ ADMIN CONTROL ------------------
 
     function addAdmin(address account) external onlyOwner {
-        require(account != address(0), "Zero address");
+        require(account != address(0), 'Zero address');
         isAdmin[account] = true;
         emit AdminAdded(account);
     }
 
     function removeAdmin(address account) external onlyOwner {
-        require(account != address(0), "Zero address");
+        require(account != address(0), 'Zero address');
         isAdmin[account] = false;
         emit AdminRemoved(account);
     }
@@ -171,10 +173,18 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
         string calldata uri,
         string calldata serialNumber
     ) external onlyAdmin whenNotPaused returns (uint256) {
+        // serial number uniqueness: a watch can only have one certificate
+        require(
+            !_serialNumberUsed[serialNumber],
+            'Serial number already minted'
+        );
+
         uint256 tokenId = _nextTokenId++;
 
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, uri);
+
+        _serialNumberUsed[serialNumber] = true;
 
         _watchData[tokenId] = WatchData({
             serialNumber: serialNumber,
@@ -195,11 +205,11 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
         address to,
         string calldata paymentRef
     ) external tokenExists(tokenId) notStolen(tokenId) whenNotPaused {
-        require(ownerOf(tokenId) == msg.sender, "Not owner");
-        require(to != address(0), "Zero address");
+        require(ownerOf(tokenId) == msg.sender, 'Not owner');
+        require(to != address(0), 'Zero address');
 
         TransferRequest storage req = _transferRequests[tokenId];
-        require(req.status != TransferStatus.PENDING, "Pending request");
+        require(req.status != TransferStatus.PENDING, 'Pending request');
 
         _transferRequests[tokenId] = TransferRequest({
             tokenId: tokenId,
@@ -210,13 +220,19 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
             paymentRef: paymentRef
         });
 
-        emit TransferRequested(tokenId, msg.sender, to, paymentRef, block.timestamp);
+        emit TransferRequested(
+            tokenId,
+            msg.sender,
+            to,
+            paymentRef,
+            block.timestamp
+        );
     }
 
     function cancelTransfer(uint256 tokenId) external tokenExists(tokenId) {
         TransferRequest storage req = _transferRequests[tokenId];
-        require(req.status == TransferStatus.PENDING, "No pending");
-        require(req.from == msg.sender, "Not requester");
+        require(req.status == TransferStatus.PENDING, 'No pending');
+        require(req.from == msg.sender, 'Not requester');
 
         req.status = TransferStatus.CANCELLED;
         emit TransferCancelled(tokenId, msg.sender, block.timestamp);
@@ -226,7 +242,7 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
         uint256 tokenId
     ) external onlyAdmin tokenExists(tokenId) notStolen(tokenId) whenNotPaused {
         TransferRequest storage req = _transferRequests[tokenId];
-        require(req.status == TransferStatus.PENDING, "No pending");
+        require(req.status == TransferStatus.PENDING, 'No pending');
 
         _transfersAllowed[tokenId] = true;
 
@@ -245,7 +261,7 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
         uint256 tokenId
     ) external onlyAdmin tokenExists(tokenId) {
         TransferRequest storage req = _transferRequests[tokenId];
-        require(req.status == TransferStatus.PENDING, "No pending");
+        require(req.status == TransferStatus.PENDING, 'No pending');
 
         req.status = TransferStatus.REJECTED;
         emit TransferRejected(tokenId, msg.sender, block.timestamp);
@@ -285,18 +301,18 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
     ) public override(ERC721, IERC721) {
         require(
             isAdmin[msg.sender] || _transfersAllowed[tokenId],
-            "Transfers restricted"
+            'Transfers restricted'
         );
         require(
             _watchData[tokenId].status != WatchStatus.STOLEN,
-            "Token stolen"
+            'Token stolen'
         );
 
-        if (isAdmin[msg.sender] == false) {
+        if (isAdmin[msg.sender]) {
             _safeTransfer(from, to, tokenId);
             return;
         } else {
-            super._transfer(from, to, tokenId);
+            super.transferFrom(from, to, tokenId);
         }
     }
 
@@ -308,11 +324,11 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
     ) public override(ERC721, IERC721) {
         require(
             isAdmin[msg.sender] || _transfersAllowed[tokenId],
-            "Transfers restricted"
+            'Transfers restricted'
         );
         require(
             _watchData[tokenId].status != WatchStatus.STOLEN,
-            "Token stolen"
+            'Token stolen'
         );
 
         if (isAdmin[msg.sender]) {
@@ -339,14 +355,19 @@ contract Mintd is ERC721, ERC721URIStorage, ERC721Pausable, Ownable {
     function isAdminAddress(address account) external view returns (bool) {
         return isAdmin[account];
     }
+    function isSerialNumberUsed(
+        string calldata serialNumber
+    ) external view returns (bool) {
+        return _serialNumberUsed[serialNumber];
+    }
+
     // @dev for testing only – remove in production
     function getNextTokenId() external view returns (uint256) {
         return _nextTokenId;
     }
     function getTransfersAllowed(uint256 tokenId) external view returns (bool) {
-    return _transfersAllowed[tokenId];
-}
-
+        return _transfersAllowed[tokenId];
+    }
 
     // ------------------ METADATA OVERRIDES ------------------
 
