@@ -7,7 +7,8 @@ export type UserRole = 'COLLECTOR' | 'ADMIN';
 
 const UserBaseSchema = new Schema(
     {
-        username: { type: String, required: true, trim: true },
+        fName: { type: String, required: true, trim: true },
+        lName: { type: String, required: true, trim: true },
         email: {
             type: String,
             unique: true,
@@ -16,15 +17,17 @@ const UserBaseSchema = new Schema(
             lowercase: true,
         },
         passwordHash: { type: String, required: true },
+        role: { type: String, required: true, enum: ['COLLECTOR', 'ADMIN'] },
     },
     { timestamps: true, discriminatorKey: 'role' },
 );
 export const User = model('User', UserBaseSchema);
 
-export type UserType = InferSchemaType<typeof UserBaseSchema>;
+export type BaseUserType = InferSchemaType<typeof UserBaseSchema>;
 
 const CollectorSchema = new Schema({
     walletId: { type: Schema.Types.ObjectId, ref: 'Wallet' },
+    // denormalized kyc status for easy access without needing to read the Kyc collection every time
     kycStatus: {
         type: String,
         enum: ['NOT_SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED'],
@@ -36,8 +39,8 @@ const CollectorSchema = new Schema({
 });
 export const Collector = User.discriminator('COLLECTOR', CollectorSchema);
 
-const AdminSchema = new Schema({});
+const AdminSchema = new Schema({ adminLevel: { type: Number, default: 1 } });
 export const Admin = User.discriminator('ADMIN', AdminSchema);
 
-export type CollectorType = InferSchemaType<typeof CollectorSchema>;
-export type AdminType = InferSchemaType<typeof AdminSchema>;
+export type CollectorType = InferSchemaType<typeof CollectorSchema> & BaseUserType;
+export type AdminType = InferSchemaType<typeof AdminSchema> & BaseUserType;

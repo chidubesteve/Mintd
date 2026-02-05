@@ -48,8 +48,30 @@ const WatchSchema = new Schema(
             },
         },
 
-        purchasePrice: { type: Number, select: false },
-        nft: { type: Schema.Types.ObjectId, ref: 'NFT' },
+        watchbase: {
+            matched: { type: Boolean, default: false },
+            watchbaseId: String,
+            familyId: String,
+            status: {
+                type: String,
+                enum: ['MATCHED', 'PENDING_REVIEW', 'REJECTED'],
+                default: 'PENDING_REVIEW',
+            },
+        },
+        // Public-facing asset identifier
+        // Generated on creation: MINTD-{timestamp}-{random}
+        assetId: { type: String, unique: true, index: true, required: true },
+        status: {
+            type: String,
+            enum: [
+                'REGISTERED', //USER UPLOADS THE WATCH
+                'OWNERSHIP_RECORDED', // ASSET ID ISSUED,
+                'CERTIFICATION_PENDING',
+                'CERTIFIED', // KYC + possession + mint
+                'LOCKED', // during trigger event
+            ],
+            default: 'REGISTERED',
+        },
     },
     { timestamps: true },
 );

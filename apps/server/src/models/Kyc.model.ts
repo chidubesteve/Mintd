@@ -42,8 +42,8 @@ const KycSchema = new Schema(
         // Populated by the admin when rejecting — tells the user what to fix.
         // Cleared on resubmission so it doesn't linger from a previous rejection.
         rejectionReason: String,
-        // The admin who reviewed this submission. Null until reviewed.
-        reviewer: { type: Schema.Types.ObjectId, ref: 'User' },
+        // The admin who reviewed this submission. 
+        reviewer: { type: Schema.Types.ObjectId, ref: 'Admin' },
         // When the user last submitted/resubmitted documents for review.
         // Distinct from createdAt — createdAt is when the KYC record was first
         // created (likely at signup), submittedAt is when docs were actually uploaded.
@@ -52,8 +52,6 @@ const KycSchema = new Schema(
         // updatedAt changes on any field update, not specifically on review completion.
         reviewedAt: { type: Date },
         // Third-party KYC provider integration metadata.
-        // Only populated if using an external service (e.g. getID, Onfido).
-        // Null for manual admin-reviewed submissions.
         provider: { type: String, default: 'getID' },
         referenceId: { type: String, default: null },
     },
