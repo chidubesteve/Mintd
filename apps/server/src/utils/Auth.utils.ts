@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 export interface TokenPair {
     accessToken: string;
@@ -31,7 +32,6 @@ export async function comparePassword(
     return bcrypt.compare(plaintext, hash);
 }
 
-
 function getAccessSecret(): string {
     const secret = process.env.JWT_ACCESS_SECRET;
     if (!secret) throw new Error('JWT_ACCESS_SECRET is not set');
@@ -61,3 +61,22 @@ export function verifyAccessToken(token: string): TokenPayload {
 export function verifyRefreshToken(token: string): TokenPayload {
     return jwt.verify(token, getRefreshSecret()) as TokenPayload;
 }
+
+export function generateCryptoToken(): string {
+    const rawToken = crypto.randomBytes(32).toString('hex'); // 64 characters
+    return rawToken;
+}
+
+export function hashCryptoToken(token: string): string {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    return tokenHash;
+}
+
+export function getTokenExpirationDate(token: string): Date {
+    const decoded = jwt.decode(token) as { exp: number };
+    if (!decoded || !decoded.exp) {
+        throw new Error('Invalid token: missing exp claim');
+    }
+    return new Date(decoded.exp * 1000); // convert to milliseconds
+}
+

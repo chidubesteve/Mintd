@@ -8,10 +8,20 @@ import {
 } from '../models/User.model';
 import {
     comparePassword,
+    generateCryptoToken,
     generateTokenPair,
+    getTokenExpirationDate,
+    hashCryptoToken,
     hashPassword,
     verifyRefreshToken,
 } from '../utils/Auth.utils';
+import { generateResentVerificationEmail, generateVerificationEmail, sendMailViaMailgun } from '../utils/Email.utils';
+
+export const getAppUrl = () => {
+    return process.env.NODE_ENV === 'production'
+        ? process.env.APP_URL
+        : `http://localhost:${process.env.PORT}`;
+};
 
 /**
  * @file Auth controller - this is where we handle everything user authentication related
@@ -44,7 +54,7 @@ export async function signupHandler(req: Request, res: Response) {
         // we check the base user model and not the collector model. because email uniqueness is across all user types
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ message: 'User already exists' });
+            return res.status(200).json({ message: 'User already exists' });
         }
 
         // hash password
@@ -57,6 +67,30 @@ export async function signupHandler(req: Request, res: Response) {
             passwordHash: hashedPassword, // other fields are field in with the defaults for now
         });
         console.log('collector', collector);
+
+        // send verification email
+
+        // generate token
+        const rawToken = generateCryptoToken();
+        const hashedToken = hashCryptoToken(rawToken);
+        const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+        // save hashed token and expiry to user document
+        collector.emailVerificationToken = hashedToken;
+        collector.emailVerificationTokenExpiry = tokenExpiry;
+        await collector.save();
+
+        // send email with rawToken
+        const { subject, html, text } = generateVerificationEmail(
+            collector.fName,
+            rawToken,
+        );
+        await sendMailViaMailgun({
+            to: collector.email,
+            subject,
+            html,
+            text,
+        });
 
         // TODO: Create custodial wallet here and update collector.walletId
 
@@ -230,4 +264,149 @@ export async function logout(req: Request, res: Response): Promise<void> {
         path: '/',
     });
     res.status(200).json({ message: 'Logout successful' });
+}
+
+export async function forgotPasswordHandler(
+    req: Request,
+    res: Response,
+): Promise<void> {
+    const { email } = req.body;
+
+    if (!email) {
+        res.status(400).json({ message: 'Email is required' });
+        return;
+    }
+    try {
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+        if (!user) {
+            res.status(404).json({
+                message:
+                    "if an account exists with this email, we'd send you a password reset link",
+            });
+        }
+    } catch (error) {}
+}
+
+export async function verifyEmailHandler(req: Request, res: Response) {
+    try {
+        const { token } = req.query; // this will be the raw token
+        if (!token) {
+            res.status(400).json({ message: 'Verification token is required' });
+            return;
+        }
+
+        // hash the raw token
+        const hashedToken = hashCryptoToken(token.toString());
+        // find the user with the matching token and check if it's not expired
+        const user = await User.findOne({
+            emailVerificationTokenHash: hashedToken,
+        }).select('+emailVerificationTokenHash +emailVerificationTokenExpiry');
+        if (!user) {
+            res.status(400).json({
+                message: 'Invalid or expired verification token',
+                code: 'INVALID_TOKEN',
+            });
+            return;
+        }
+        const tokenExpiry = getTokenExpirationDate(token.toString());
+        if (tokenExpiry < new Date()) {
+            res.status(400).json({
+                message:
+                    'Verification token has expired, please request a new one',
+                code: 'EXPIRED_TOKEN',
+            });
+            return;
+        }
+
+        // CHECK IF ALREADY VERIFIED
+        if (user.emailVerified) {
+            res.status(400).json({ message: 'Email is already verified' });
+        }
+        // update user's email verification status and delete the token and expiry
+        // it is better to use $unset operator to remove the token and expiry fields from the document rather than setting them to null. because $unset will remove the fields from the document entirely, which can help prevent confusion and potential bugs down the line when checking for the existence of these fields and save space in the database.
+        await User.findByIdAndUpdate(
+            user.id,
+            {
+                emailVerified: true,
+                $unset: {
+                    emailVerificationTokenHash: 1,
+                    emailVerificationTokenExpiry: 1,
+                },
+            },
+            { new: true },
+        );
+        res.status(200).json({ message: 'Email verified successfully' });
+    } catch (error) {
+        console.error('Email verification error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+export async function resetPasswordHandler(req: Request, res: Response) {}
+/**
+ * 
+ * @param req 
+ * @param res 
+ * @returns  a promise
+ * @description User's verification link expired or was lost. Generate new token and resend. Can be called by authenticated users or by email (for unverified accounts).
+ */
+export async function resendVerificationLinkHandler(
+    req: Request,
+    res: Response,
+): Promise<void> {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ message: 'Email is required' });
+            return;
+        }
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+        if (!user) {
+            // best practice is to not reveal whether the email exists in the system or not to prevent user enumeration attacks
+            res.status(200).json({
+                message: "If an account exists with this email, a verification link has been sent"
+            });
+        } else {
+                if (user && user.emailVerified) {
+                    res.status(200).json({
+                        message: 'Email is already verified',
+                    });
+                    return;
+                }
+
+                // generate new verification token
+                const rawToken = generateCryptoToken();
+                const hashedToken = hashCryptoToken(rawToken);
+                const tokenExpiry = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour from now
+
+                // save hashed token and expiry to user document
+                user.emailVerificationToken = hashedToken;
+                user.emailVerificationTokenExpiry = tokenExpiry;
+                await user.save();
+
+                // send verification email
+
+                const { subject, html, text } =
+                     generateResentVerificationEmail(
+                        user!.fName,
+                        rawToken,
+                );
+            await sendMailViaMailgun({
+                to: user!.email,
+                subject,
+                html,
+                text,
+            });
+                res.status(200).json({
+                    message: 'Verification email sent successfully',
+                });
+        }
+
+    
+    } catch (error) {
+        console.error('Resend verification link error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 }

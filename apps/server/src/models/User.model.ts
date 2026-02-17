@@ -17,6 +17,15 @@ const UserBaseSchema = new Schema(
             lowercase: true,
         },
         passwordHash: { type: String, required: true },
+
+        // email verification
+        emailVerified: { type: Boolean, default: false },
+        emailVerificationToken: { type: String, select: false }, //the hash would always be stored
+        emailVerificationTokenExpiry: { type: Date, select: false },
+
+        // password reset
+        passwordResetToken: { type: String, select: false },
+        passwordResetTokenExpiry: { type: Date, select: false },
         role: { type: String, required: true, enum: ['COLLECTOR', 'ADMIN'] },
     },
     { timestamps: true, discriminatorKey: 'role' },

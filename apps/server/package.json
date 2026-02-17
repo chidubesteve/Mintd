@@ -20,14 +20,17 @@
         "dotenv": "^17.2.3",
         "express": "^5.2.1",
         "express-rate-limit": "^8.2.1",
+        "formdata": "^0.10.4",
         "helmet": "^8.1.0",
         "jsonwebtoken": "^9.0.3",
+        "mailgun.js": "^12.7.0",
         "mongoose": "^9.0.1",
         "multer": "^2.0.2"
     },
     "devDependencies": {
         "@types/cookie-parser": "^1.4.10",
         "@types/express": "^5.0.6",
+        "@types/formdata": "^0.10.4",
         "@types/jsonwebtoken": "^9.0.10",
         "@types/node": "^25.0.2",
         "nodemon": "^3.1.11",
