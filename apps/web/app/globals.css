@@ -1,0 +1,174 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* Fonts */
+  --font-montserrat: "Montserrat", sans-serif;
+
+  /* Brand Colors - Mintd (Direct Access) */
+  --color-mintd-forest: hsl(var(--mintd-forest));
+  --color-mintd-green-medium: hsl(var(--mintd-green-medium));
+  --color-mintd-green-light: hsl(var(--mintd-green-light));
+  --color-mintd-teal: hsl(var(--mintd-teal));
+  --color-mintd-teal-light: hsl(var(--mintd-teal-light));
+  --color-mintd-white: hsl(var(--mintd-white));
+  --color-mintd-offwhite: hsl(var(--mintd-offwhite));
+  --color-mintd-cream: hsl(var(--mintd-cream));
+  --color-mintd-gray: hsl(var(--mintd-gray));
+  --color-mintd-gray-light: hsl(var(--mintd-gray-light));
+  --color-mintd-black: hsl(var(--mintd-black));
+
+  /* Semantic UI Colors mapped to CSS Variables */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  /* Radius */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  /* Keyframes & Animations (from your v3 config) */
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
+  }
+  @keyframes fade-in {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.5s ease-out;
+}
+
+/* ========================================
+   CSS Variables (Logic)
+   ======================================== */
+:root {
+  /* Mintd Brand Palette (HSL Raw Values) */
+  --mintd-forest: 145 38% 18%;
+  --mintd-green-medium: 155 32% 28%;
+  --mintd-green-light: 155 25% 92%;
+  --mintd-teal: 165 85% 33%;
+  --mintd-teal-light: 165 50% 90%;
+  --mintd-white: 0 0% 100%;
+  --mintd-offwhite: 150 10% 98%;
+  --mintd-cream: 150 8% 96%;
+  --mintd-gray: 150 5% 45%;
+  --mintd-gray-light: 150 5% 85%;
+  --mintd-black: 145 40% 8%;
+
+  /* Semantic Assignments - Light Mode */
+  --background: hsl(var(--mintd-offwhite));
+  --foreground: hsl(var(--mintd-forest));
+  --card: hsl(var(--mintd-white));
+  --card-foreground: hsl(var(--mintd-forest));
+  --popover: hsl(var(--mintd-white));
+  --popover-foreground: hsl(var(--mintd-forest));
+  --primary: hsl(var(--mintd-forest));
+  --primary-foreground: hsl(var(--mintd-white));
+  --secondary: hsl(var(--mintd-green-light));
+  --secondary-foreground: hsl(var(--mintd-forest));
+  --muted: hsl(var(--mintd-cream));
+  --muted-foreground: hsl(var(--mintd-gray));
+  --accent: hsl(var(--mintd-teal));
+  --accent-foreground: hsl(var(--mintd-white));
+  --destructive: hsl(0 72% 51%);
+  --destructive-foreground: hsl(var(--mintd-white));
+  --success: hsl(var(--mintd-teal));
+  --warning: hsl(38 92% 50%);
+  --border: hsl(var(--mintd-gray-light));
+  --input: hsl(var(--mintd-gray-light));
+  --ring: hsl(var(--mintd-teal));
+  --radius: 0.75rem;
+
+  /* Shadows */
+  --shadow-subtle: 0 1px 3px hsl(var(--mintd-forest) / 0.05);
+  --shadow-card: 0 4px 12px hsl(var(--mintd-forest) / 0.08);
+  --shadow-luxury: 0 10px 24px -4px hsl(var(--mintd-forest) / 0.12);
+  --shadow-glow: 0 0 30px hsl(var(--mintd-teal) / 0.15);
+}
+
+.dark {
+  --background: hsl(var(--mintd-black));
+  --foreground: hsl(var(--mintd-offwhite));
+  --card: hsl(var(--mintd-forest));
+  --card-foreground: hsl(var(--mintd-offwhite));
+  --popover: hsl(var(--mintd-forest));
+  --popover-foreground: hsl(var(--mintd-offwhite));
+  --primary: hsl(var(--mintd-offwhite));
+  --primary-foreground: hsl(var(--mintd-forest));
+  --secondary: hsl(155 25% 22%);
+  --secondary-foreground: hsl(var(--mintd-offwhite));
+  --muted: hsl(155 20% 15%);
+  --muted-foreground: hsl(150 10% 60%);
+  --border: hsl(155 20% 20%);
+  --input: hsl(155 20% 20%);
+  
+  /* Dark mode shadows */
+  --shadow-subtle: 0 1px 3px hsl(0 0% 0% / 0.2);
+  --shadow-card: 0 4px 12px hsl(0 0% 0% / 0.3);
+  --shadow-luxury: 0 10px 24px -4px hsl(0 0% 0% / 0.4);
+  --shadow-glow: 0 0 40px hsl(var(--mintd-teal) / 0.25);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-montserrat antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .hover-lift {
+    @apply transition-transform duration-300 hover:scale-[1.02];
+  }
+  .hover-glow:hover {
+    box-shadow: var(--shadow-glow);
+  }
+  .shadow-subtle { box-shadow: var(--shadow-subtle); }
+  .shadow-card { box-shadow: var(--shadow-card); }
+  .shadow-luxury { box-shadow: var(--shadow-luxury); }
+
+  /* Custom Animations */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+}
