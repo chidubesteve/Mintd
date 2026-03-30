@@ -30,7 +30,10 @@ const WatchSchema = new Schema(
         images: {
             type: [
                 {
-                    url: { type: String, required: true },
+                    url: { type: String, required: true }, // this is the transformed/procesed url (bg removed, webp, overlay applied). used by public facing ui and nft metadata
+                    originalUrl: { type: String, required: true }, // this is the original uploaded url
+                    originalHash: { type: String, required: true }, // hash of the original image for verification and duplicate detection. sha256
+                    fileId: { type: String, required: true }, // the file identifier from the image hosting service (eg ImageKit) to allow for future management of the image (deletion, transformation, etc)
                     isPrimary: { type: Boolean, default: false },
                     viewType: {
                         type: String,
@@ -45,13 +48,15 @@ const WatchSchema = new Schema(
                     return images.length >= 1 && images.length <= 4;
                 },
                 message: 'Watch must have between 1 and 4 images',
-            },
+            },            
+            default: [],            
         },
+        isCustomBrand: { type: Boolean, default: false },
+        adminNote: { type: String, default: "" },
 
-        watchbase: {
+        catalog: {
             matched: { type: Boolean, default: false },
-            watchbaseId: String,
-            familyId: String,
+            catalogueId : String,
             status: {
                 type: String,
                 enum: ['MATCHED', 'PENDING_REVIEW', 'REJECTED'],
@@ -69,6 +74,7 @@ const WatchSchema = new Schema(
                 'CERTIFICATION_PENDING',
                 'CERTIFIED', // KYC + possession + mint
                 'LOCKED', // during trigger event
+                'SOLD',
             ],
             default: 'REGISTERED',
         },

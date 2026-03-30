@@ -3,22 +3,35 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import healthCheckRoute from './routes/index';
-import authRoutes from './routes/auth.routes';
+import apiRoutes from './routes';
 import { connectDB } from './config/db';
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(cors());
-app.use(cookieParser());
+const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim());
+
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            // Allow requests with no origin (curl, Postman, server-to-server)
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+            callback(new Error(`CORS: origin ${origin} not allowed`));
+        },
+        credentials: true,
+    }),
+);
+
 app.use(helmet());
+app.use(express.json());
+app.use(cookieParser());
 
 connectDB();
 
-app.use('/health', healthCheckRoute);
-app.use('/auth', authRoutes);
+app.use('/api', apiRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

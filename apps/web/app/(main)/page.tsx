@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from '@/components/ui/button';
 import {
     Shield,
@@ -18,15 +20,11 @@ import Link from 'next/link';
 
 import HeroCertificateMockup from '@/components/HeroCertificateMockup';
 
-
 const Home = () => {
-
-
     return (
         <div className='min-h-screen bg-background text-foreground'>
-
             {/* Hero Section */}
-            <section className='pt-32 pb-20 lg:pb-24 relative overflow-hidden bg-background'>
+            <section className='pt-32 pb-20 lg:pb-24 relative overflow-hidden bg-background mx-auto w-full xl:max-w-[calc(100%-6rem)]'>
                 <div className='container mx-auto px-6'>
                     <div className='grid lg:grid-cols-2 gap-12 lg:gap-8 items-center'>
                         {/* Left: Text content */}
@@ -221,7 +219,7 @@ const Home = () => {
                                 <CheckCircle2 className='w-5 h-5' />
                                 Mintd Solutions
                             </h3>
-                            <div className='space-y-4'>
+                            <div className='space-y-4 xl:space-y-6'>
                                 <div className='p-5 rounded-xl border border-accent/30 bg-accent/5 shadow-card'>
                                     <div className='flex items-start gap-3'>
                                         <BadgeCheck className='w-5 h-5 text-accent mt-0.5' />
@@ -442,12 +440,15 @@ const Home = () => {
                             className='bg-accent text-accent-foreground hover:bg-accent/90 h-12 px-10 text-md w-50 font-bold'
                         >
                             Register Now
-                <ArrowRight className='w-6 h-6 ml-1' size={40} strokeWidth={3} />
+                            <ArrowRight
+                                className='w-6 h-6 ml-1'
+                                size={40}
+                                strokeWidth={3}
+                            />
                         </Button>
                     </Link>
                 </div>
             </section>
-
         </div>
     );
 };

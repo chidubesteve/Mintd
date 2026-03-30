@@ -1,22 +1,23 @@
 
 
 import { Router } from "express";
-import { signupHandler, loginHandler, RefreshToken, logout, verifyEmailHandler, resendVerificationLinkHandler, forgotPasswordHandler, resetPasswordHandler } from "../controllers/Auth.controller";
+import { signupHandler, loginHandler, RefreshToken, logout, verifyEmailHandler,  forgotPasswordHandler, resetPasswordHandler, resendVerificationCodeHandler } from "../controllers/Auth.controller";
 import { authMiddleware } from "../middlewares/Auth.middleware";
+import { loginLimiter, passwordResetLimiter, registerLimiter, resendLimiter } from "../middlewares/rateLimits";
 
 const router = Router();
 
-router.post('/signup', signupHandler);
-router.post('/login', loginHandler); 
+router.post('/register', registerLimiter, signupHandler);
+router.post('/login', loginLimiter, loginHandler); 
 router.post('/refresh', RefreshToken);
 
 // Email verification
 router.post("/verify-email", verifyEmailHandler);
-router.post("/resend-verification", resendVerificationLinkHandler);
+router.post("/resend-verification", resendLimiter, resendVerificationCodeHandler);
 
 // Password reset
 router.post("/forgot-password", forgotPasswordHandler);
-router.post("/reset-password", resetPasswordHandler);
+router.post("/reset-password", passwordResetLimiter, resetPasswordHandler);
 
 router.post("/logout", authMiddleware, logout);
 

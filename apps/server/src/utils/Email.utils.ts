@@ -1,158 +1,80 @@
-import formData from "form-data"
-import Mailgun from "mailgun.js";
+import dotenv from 'dotenv';
+dotenv.config();
+import { Resend } from 'resend';
+import { PasswordResetEmail } from './emails/PasswordReset';
+import  { VerifyEmail } from "./emails/VerifyEmail";
+import { ResendVerificationEmail } from './emails/resendVerification';
 interface EmailParams {
     to: string;
     subject: string;
-    html: string;
-    text?: string; // Plain text fallback
+    react: React.ReactElement;
 }
 
-
-export async function sendMailViaMailgun(params: EmailParams): Promise<void> {
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM = process.env.EMAIL_FROM || 'hello@mintd.uk';
+export async function sendMail(params: EmailParams): Promise<void> {
     try {
-       const apiKey = process.env.MAILGUN_API_KEY;
-       const domain = process.env.MAILGUN_SANDBOX_DOMAIN;
-       const mailgun = new Mailgun(formData);
+        const { error, data } = await resend.emails.send({
+            from: FROM,
+            to: params.to,
+            subject: params.subject,
+            react: params.react,
+        });
 
-       if (!apiKey || !domain) {
-           throw new Error('Missing environment variables: apikey and domain');
-       }
+        if (error) {
+            throw new Error(error.message);
+        }
 
-       const mg = mailgun.client({ username: 'api', key: apiKey });
-
-       await mg.messages.create(domain, {
-           from: process.env.EMAIL_FROM || 'no-reply@mintd.uk',
-           to: params.to,
-           subject: params.subject,
-           text: params.text,
-           html: params.html,
-       });
-        console.log(`[Email] sent to ${params.to} successfully`)
-  
+        console.log('[Email] sent:', data);
     } catch (error) {
-        console.error(`[Email] failed to send:`, error)
-        throw new Error("Failed to send email")
+        console.error('[Email] failed:', error);
+        throw error;
     }
-   
-
 }
 
 // email templates
-export function generateVerificationEmail(userFName: string, token: string): {subject: string, html: string, text: string} {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const verificationUrl = `${frontendUrl}/verify-email?token=${token}`
+export async function sendVerificationEmail(
+    to: string,
+    otp: string,
+    userFName: string,
+): Promise<void> {
 
-
-    return {
-        subject: 'Verify your Mintd account',
-        html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Welcome to Mintd, ${userFName}!</h2>
-        <p>Thank you for signing up. Please verify your email address to get started.</p>
-        <p>
-          <a href="${verificationUrl}" 
-             style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 2px;">
-            Verify Email
-          </a>
-        </p>
-        <p style="color: #666; font-size: 14px;">
-          This link will expire in 24 hours. If you didn't create a Mintd account, you can safely ignore this email.
-        </p>
-        <p style="color: #999; font-size: 12px; margin-top: 40px;">
-          Or copy and paste this link into your browser:<br>
-          ${verificationUrl}
-        </p>
-      </div>
-    `,
-        text: `
-      Welcome to Mintd, ${userFName}!
-      
-      Thank you for signing up. Please verify your email address by clicking the link below:
-      
-      ${verificationUrl}
-      
-      This link will expire in 24 hours. If you didn't create a Mintd account, you can safely ignore this email.
-    `,
-    };
-
+        await sendMail({
+            to,
+            subject: 'Mintd - Verify your email',
+            react: VerifyEmail({ userFName, otp }),
+        });
 }
 
-export function generatePasswordResetEmail(userFName: string, token: string): { subject: string, html: string, text: string } {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
-
-    return {
-        subject: 'Reset your Mintd password',
-        html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Reset your password</h2>
-        <p>Hi ${userFName},</p>
-        <p>We received a request to reset your Mintd password. Click the button below to choose a new password:</p>
-        <p>
-          <a href="${resetUrl}" 
-             style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
-            Reset Password
-          </a>
-        </p>
-        <p style="color: #666; font-size: 14px;">
-          This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.
-        </p>
-        <p style="color: #999; font-size: 12px; margin-top: 40px;">
-          Or copy and paste this link into your browser:<br>
-          ${resetUrl}
-        </p>
-      </div>
-    `,
-        text: `
-      Reset your password
-      
-      Hi ${userFName},
-      
-      We received a request to reset your Mintd password. Click the link below to choose a new password:
-      
-      ${resetUrl}
-      
-      This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.
-    `,
-    };
-}
-
-export  function generateResentVerificationEmail(userFName: string, token: string): { subject: string, html: string, text: string } {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const verificationUrl = `${frontendUrl}/verify-email?token=${token}`
-
-    return {
-        subject: "Verification email resent - verify your Mintd account",
-        html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2>Verification link expired? Don't worry, we've resent it.</h2>
-      <p>Hi ${userFName},</p>
-      <p>It looks like your previous verification link expired. No problem! Please click the button below to verify your email address and get started with Mintd:</p>
-      <p>
-        <a href="${verificationUrl}" 
-           style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 2px;">
-          Verify Email
-        </a>
-      </p>
-      <p style="color: #666; font-size: 14px;">
-        This link will expire in 24 hours. If you didn't create a Mintd account, you can safely ignore this email.
-      </p>
-      <p style="color: #999; font-size: 12px; margin-top: 40px;">
-        Or copy and paste this link into your browser:<br>
-        ${verificationUrl}
-      </p>
-    </div>
-    `,
-        text: `
-      Verification link expired? Don't worry, we've resent it.
-      
-      Hi ${userFName}!
-      
-      It looks like your previous verification link expired. No problem! Please click the link below to verify your email address and get started with Mintd:
-      
-      ${verificationUrl}
-      
-      This link will expire in 24 hours. If you didn't create a Mintd account, you can safely ignore this email.
-    `,
+export  async function sendPasswordResetEmail(
+    userFName: string,
+    to: string,
+    resetUrl: string,
+): Promise<void> {
+    try {
+        await sendMail({
+            to,
+            subject: 'Mintd - Reset your password',
+            react: PasswordResetEmail({ userFName, resetUrl }),
+        });
+    } catch (error) {
+        console.error('[Email] failed:', error);
+        throw error;
     }
+}
+
+export async function sendResentVerificationEmail(
+    userFName: string,
+    to: string,
+    otp: string,
+): Promise<void> {
+  try {
+    await sendMail({
+        to,
+        subject: 'Your new Mintd verification code',
+        react: ResendVerificationEmail({ userFName, otp }),
+    });
+  } catch (error) {
+    
+  }
 }

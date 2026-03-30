@@ -20,8 +20,8 @@ const UserBaseSchema = new Schema(
 
         // email verification
         emailVerified: { type: Boolean, default: false },
-        emailVerificationToken: { type: String, select: false }, //the hash would always be stored
-        emailVerificationTokenExpiry: { type: Date, select: false },
+        emailVerificationCode: { type: String, select: false }, //the hash would always be stored
+        emailVerificationCodeExpiry: { type: Date, select: false },
 
         // password reset
         passwordResetToken: { type: String, select: false },
@@ -30,6 +30,9 @@ const UserBaseSchema = new Schema(
     },
     { timestamps: true, discriminatorKey: 'role' },
 );
+// immediately delete expired email verification tokens and password reset tokens using TTL index
+UserBaseSchema.index({ emailVerificationTokenExpiry: 1 }, { expireAfterSeconds: 0 });
+UserBaseSchema.index({ passwordResetTokenExpiry: 1 }, { expireAfterSeconds: 0 });
 export const User = model('User', UserBaseSchema);
 
 export type BaseUserType = InferSchemaType<typeof UserBaseSchema>;
