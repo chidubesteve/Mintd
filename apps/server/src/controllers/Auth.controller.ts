@@ -534,7 +534,13 @@ export async function resendVerificationCodeHandler(
 
         // send verification email
 
-        await sendResentVerificationEmail(user.fName, user.email, otp);
+        await sendResentVerificationEmail(user.fName, user.email, otp).catch(
+            (err) =>
+                console.error(
+                    '[resendVerificationCodeHandler] email send failed:',
+                    err.message,
+                ),
+        );
         res.status(200).json({
             message: 'Verification code sent successfully',
         });
