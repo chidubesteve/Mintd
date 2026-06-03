@@ -80,14 +80,22 @@ export async function signupHandler(req: Request, res: Response) {
         });
         console.log('collector', collector);
 
-        // send verification email
-
-        await sendVerificationEmail(collector.email, otp, collector.fName);
+        // send verification email, fire-and-forget: a delivery failure must not
+        // block account creation or redirect the user away from verify screen
+        await sendVerificationEmail(
+            collector.email,
+            otp,
+            collector.fName,
+        ).catch((err) =>
+            console.error(
+                '[sendVerificationEmail] Error sending verification email:',
+                err,
+            ),
+        );
 
         // TODO: Create custodial wallet here and update collector.walletId
         // don't generate and issue token immidiately after registartation do it after verifying email because we want to make sure the email is valid before allowing them to log in and access protected routes. we can generate and issue tokens after email verification in the verifyEmailHandler function.
         // generate tokens
-
 
         res.status(201).json({
             message: 'Account created successfully',
@@ -129,8 +137,12 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
 
         // check if email is verified
         if (!user.emailVerified) {
-            res.status(401).json({ message: 'Email is not verified, navigating to verify page', code: 'EMAIL_NOT_VERIFIED', email: user.email });
-            
+            res.status(401).json({
+                message: 'Email is not verified, navigating to verify page',
+                code: 'EMAIL_NOT_VERIFIED',
+                email: user.email,
+            });
+
             return;
         }
 
@@ -393,8 +405,8 @@ export async function verifyEmailHandler(req: Request, res: Response) {
                 emailVerified: true,
                 fName: user.fName,
                 lName: user.lName,
-            }
-         });
+            },
+        });
     } catch (error) {
         console.error('Email verification error:', error);
         res.status(500).json({
