@@ -21,9 +21,6 @@ export const registerFormSchema = z.object({
             'Password must contain at least one special character',
         ),
     confirmPassword: z.string(),
-    agree: z.boolean().refine((val) => val === true, {
-        message: 'You must agree to the terms and conditions and privacy policy',
-    }),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",   
     path: ['confirmPassword'],

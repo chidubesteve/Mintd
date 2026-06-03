@@ -1,4 +1,4 @@
-"use client"
+'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,15 +11,19 @@ import { registerFormSchema, RegisterFormValues } from './validation/schema';
 import Image from 'next/image';
 import { useRegister } from '@/hooks/mutations/useAuthMutations';
 import { useForm } from 'react-hook-form';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Eye, EyeOff, Info } from 'lucide-react';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 import { useState } from 'react';
 
 const Register = () => {
     const { resolvedTheme } = useTheme();
-    const [showPassword, setShowPassword] = useState(false)
+    const [showPassword, setShowPassword] = useState(false);
     const iconSrc = resolvedTheme === 'light' ? iconDark : iconLight;
-    const {mutate: registerUser, isPending} = useRegister()
+    const { mutate: registerUser, isPending } = useRegister();
     const {
         register,
         handleSubmit,
@@ -32,15 +36,15 @@ const Register = () => {
             email: '',
             password: '',
             confirmPassword: '',
-            agree: false,
-        }, mode: 'onChange',
+        },
+        mode: 'onChange',
         delayError: 1500, // add a delay of 1.5 second before showing validation errors to avoid overwhelming the user with messages as they type
     });
 
     // TODO: Replace with  mutation to call Express backend
     const onSubmit = async (data: RegisterFormValues) => {
-    registerUser(data);
-    }
+        registerUser(data);
+    };
 
     return (
         <div className='min-h-screen flex items-center justify-center bg-muted/30 p-6'>
@@ -164,29 +168,6 @@ const Register = () => {
                                     className='h-12'
                                     {...register('password')}
                                 />
-                                <Button
-                                    className='absolute top-0 right-0 h-full px-3 hover:bg-transparent'
-                                    onClick={() =>
-                                        setShowPassword(!showPassword)
-                                    }
-                                    size='icon'
-                                    type='button'
-                                    variant='ghost'
-                                >
-                                    {showPassword ? (
-                                        <EyeOff
-                                            className='h-4 w-4 text-muted-foreground'
-                                            aria-label='Hide Password'
-                                            role='img'
-                                        />
-                                    ) : (
-                                        <Eye
-                                            className='h-4 w-4 text-muted-foreground'
-                                            aria-label='Show Password'
-                                            role='img'
-                                        />
-                                    )}
-                                </Button>
                             </div>
                             {errors.password && (
                                 <p className='text-xs text-red-500'>
@@ -201,51 +182,41 @@ const Register = () => {
                             >
                                 Confirm Password
                             </Label>
-                            <Input
-                                id='confirmPassword'
-                                type='password'
-                                placeholder='Repeat your password'
-                                className='h-12'
-                                {...register('confirmPassword')}
-                            />
+                            <div className='relative'>
+                                <Input
+                                    id='confirmPassword'
+                                    type={showPassword ? 'text' : 'password'}
+                                    placeholder='Repeat your password'
+                                    className='h-12'
+                                    {...register('confirmPassword')}
+                                />
+                            </div>
+
                             {errors.confirmPassword && (
                                 <p className='text-xs text-red-500'>
                                     {errors.confirmPassword.message}
                                 </p>
                             )}
                         </div>
-                        <div className='flex items-start gap-2 '>
-                            <input
+                        <div className='flex items-center gap-2'>
+                            <Input
                                 type='checkbox'
-                                id='agree'
-                                {...register('agree')}
-                                className='accent-accent h-4 w-4 mt-0.5'
+                                id='showPassword'
+                                className='accent-accent h-4 w-4'
+                                onChange={(p) => setShowPassword(!p)}
+                                aria-label={
+                                    showPassword
+                                        ? 'Hide password'
+                                        : 'Show password'
+                                }
                             />
                             <Label
-                                htmlFor='agree'
-                                className='text-sm flex-wrap'
+                                htmlFor='showPassword'
+                                className='text-sm text-foreground'
                             >
-                                I agree to the{' '}
-                                <Link
-                                    href='/terms'
-                                    className='underline text-accent'
-                                >
-                                    Terms & Conditions
-                                </Link>{' '}
-                                and{' '}
-                                <Link
-                                    href='/privacy'
-                                    className='underline text-accent'
-                                >
-                                    Privacy Policy
-                                </Link>
+                                Show password
                             </Label>
                         </div>
-                        {errors.agree && (
-                            <p className='text-xs text-red-500'>
-                                {errors.agree.message}
-                            </p>
-                        )}
 
                         <Button
                             type='submit'
@@ -257,6 +228,23 @@ const Register = () => {
                                 ? 'Creating Account...'
                                 : 'Create Account'}
                         </Button>
+                        <p className='text-xs text-muted-foreground text-center leading-relaxed'>
+                            By creating an account you agree to our{' '}
+                            <Link
+                                href='/terms'
+                                className='underline text-accent hover:text-accent/80'
+                            >
+                                Terms & Conditions
+                            </Link>{' '}
+                            and confirm that you have read and understand our{' '}
+                            <Link
+                                href='/privacy'
+                                className='underline text-accent hover:text-accent/80'
+                            >
+                                Privacy Policy
+                            </Link>
+                            .
+                        </p>
                     </form>
 
                     <p className='text-center text-sm text-muted-foreground'>
