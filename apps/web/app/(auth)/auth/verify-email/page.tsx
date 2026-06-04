@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import {  useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
-import {  Loader2,  RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/Auth.store';
 import {
@@ -25,7 +25,6 @@ import {
 
 const COOLDOWN_SECONDS = 60;
 
-
 export default function VerifyEmailPage() {
     const { resolvedTheme } = useTheme();
     const iconSrc = resolvedTheme === 'light' ? iconDark : iconLight;
@@ -43,7 +42,7 @@ export default function VerifyEmailPage() {
         error,
     } = useVerifyEmail();
 
-    const [cooldown, setCooldown] = useState(() => 
+    const [cooldown, setCooldown] = useState(() =>
         // If coming from login, we already sent a code, so start with cooldown active.
         source === 'login' ? COOLDOWN_SECONDS : 0,
     );
@@ -53,7 +52,7 @@ export default function VerifyEmailPage() {
     const errorMessage = isError
         ? ((error as AxiosError<{ message?: string }>)?.response?.data
               ?.message ?? 'Something went wrong. Please try again.')
-        : null; 
+        : null;
 
     // Tick down every second while cooldown is active
     useEffect(() => {
@@ -69,9 +68,7 @@ export default function VerifyEmailPage() {
         if (otp.length === 6 && !verifying) {
             if (!userEmail) {
                 // this should never happen, but just in case
-                toast.error(
-                    'Session expired. Please sign in again.',
-                );
+                toast.error('Session expired. Please sign in again.');
                 router.push('/auth/login');
                 return;
             }
@@ -92,6 +89,15 @@ export default function VerifyEmailPage() {
         resend(userEmail, { onSuccess: () => setCooldown(COOLDOWN_SECONDS) });
     }, [cooldown, isResending, userEmail, resend]);
 
+    const heading =
+        source === 'login'
+            ? 'Verify your email to continue'
+            : 'Check your email';
+    const subtext =
+        source === 'login'
+            ? "Your account hasn't been verified yet. We've sent a fresh code to"
+            : 'Enter the 6-digit code we sent to';
+
     return (
         <div className='min-h-screen flex items-center justify-center bg-muted/30 p-6'>
             <div className='w-full max-w-sm'>
@@ -105,12 +111,12 @@ export default function VerifyEmailPage() {
                             />
                         </Link>
                         <h1 className='text-xl font-bold text-foreground mb-2'>
-                            Verify your email
+                            {heading}
                         </h1>
                         <p className='text-sm text-muted-foreground'>
-                            Enter the 6-digit code sent to{' '}
+                            {subtext}{' '}
                             <span className='font-medium text-foreground'>
-                                {userEmail || 'your email'}
+                                {userEmail || 'your email address'}
                             </span>
                         </p>
                     </div>
@@ -124,45 +130,28 @@ export default function VerifyEmailPage() {
                             disabled={verifying}
                         >
                             <InputOTPGroup>
-                                <InputOTPSlot
-                                    index={0}
-                                    className={
-                                        isError ? 'border-destructive' : ''
-                                    }
-                                />
-                                <InputOTPSlot
-                                    index={1}
-                                    className={
-                                        isError ? 'border-destructive' : ''
-                                    }
-                                />
-                                <InputOTPSlot
-                                    index={2}
-                                    className={
-                                        isError ? 'border-destructive' : ''
-                                    }
-                                />
+                                {[0, 1, 2].map((index) => (
+                                    <InputOTPSlot
+                                        key={index}
+                                        index={index}
+                                        className={
+                                            isError ? 'border-destructive' : ''
+                                        }
+                                    />
+                                ))}
                             </InputOTPGroup>
-                                <InputOTPSeparator className='text-muted-foreground' />
+
+                            <InputOTPSeparator className='text-muted-foreground' />
                             <InputOTPGroup>
-                                <InputOTPSlot
-                                    index={3}
-                                    className={
-                                        isError ? 'border-destructive' : ''
-                                    }
-                                />
-                                <InputOTPSlot
-                                    index={4}
-                                    className={
-                                        isError ? 'border-destructive' : ''
-                                    }
-                                />
-                                <InputOTPSlot
-                                    index={5}
-                                    className={
-                                        isError ? 'border-destructive' : ''
-                                    }
-                                />
+                                {[3, 4, 5].map((index) => (
+                                    <InputOTPSlot
+                                        key={index}
+                                        index={index}
+                                        className={
+                                            isError ? 'border-destructive' : ''
+                                        }
+                                    />
+                                ))}
                             </InputOTPGroup>
                         </InputOTP>
 
