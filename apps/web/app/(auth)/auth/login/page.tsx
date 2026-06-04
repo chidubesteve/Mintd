@@ -1,4 +1,4 @@
-"use client"
+'use client';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
@@ -11,9 +11,12 @@ import iconLight from '@/public/logo-mixed.webp';
 import { loginFormSchema, LoginFormValues } from './validation/schema';
 import { useLogin } from '@/hooks/mutations/useAuthMutations';
 import Image from 'next/image';
+import { Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
 
 const Login = () => {
     const { resolvedTheme } = useTheme();
+    const [showPassword, setShowPassword] = useState(false);
     const iconSrc = resolvedTheme === 'light' ? iconDark : iconLight;
     const { mutate: loginUser, isPending } = useLogin();
     const {
@@ -77,19 +80,52 @@ const Login = () => {
                         </div>
 
                         <div className='space-y-2'>
+                            <div className='flex items-center justify-between'>
                             <Label
                                 htmlFor='password'
                                 className='text-foreground'
                             >
                                 Password
                             </Label>
-                            <Input
-                                id='password'
-                                type='password'
-                                placeholder='Enter your password'
-                                className='h-12'
-                                {...register('password')}
-                            />
+                                <Link
+                                    href='/auth/forgot-password'
+                                    className='text-sm font-medium text-accent hover:underline'
+                                >
+                                    Forgot password?
+                            </Link>
+                            </div>
+                            <div className='relative'>
+                                <Input
+                                    id='password'
+                                    type={showPassword ? 'text' : 'password'}
+                                    placeholder='Enter your password'
+                                    className='h-12'
+                                    {...register('password')}
+                                />
+                                <Button
+                                    className='absolute top-0 right-0 h-full px-3 hover:bg-transparent'
+                                    onClick={() =>
+                                        setShowPassword(!showPassword)
+                                    }
+                                    size='icon'
+                                    type='button'
+                                    variant='ghost'
+                                >
+                                    {showPassword ? (
+                                        <EyeOff
+                                            className='h-4 w-4 text-muted-foreground'
+                                            role='img'
+                                            aria-label='Hide Password'
+                                        />
+                                    ) : (
+                                        <Eye
+                                            className='h-4 w-4 text-muted-foreground'
+                                            role='img'
+                                            aria-label='Show Password'
+                                        />
+                                    )}
+                                </Button>
+                            </div>
                             {errors.password && (
                                 <p className='text-xs text-red-500'>
                                     {errors.password.message}
@@ -105,15 +141,6 @@ const Login = () => {
                         >
                             {isPending ? 'Signing in...' : 'Sign In'}
                         </Button>
-
-                        <div className='text-right'>
-                            <Link
-                                href='/auth/forgot-password'
-                                className='text-xs text-accent hover:underline font-medium'
-                            >
-                                Forgot password?
-                            </Link>
-                        </div>
                     </form>
 
                     <p className='text-center text-sm text-muted-foreground'>

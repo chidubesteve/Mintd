@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { createJSONStorage, persist, devtools } from 'zustand/middleware';
 
 export type UserRole = 'COLLECTOR' | 'ADMIN';
 
@@ -24,6 +24,9 @@ export interface AuthUser {
 interface AuthState {
     user: AuthUser | null;
     accessToken: string | null;
+    pendingEmail: string | null; // used during email verification flow - // Set on register success or EMAIL_NOT_VERIFIED login error.
+    // Cleared on successful verification.
+    // Persisted to sessionStorage so a page refresh on /verify-email still works
 
     // Called after a successful login or token refresh.
     setAuth: (user: AuthUser, accessToken: string) => void;
@@ -37,39 +40,36 @@ interface AuthState {
 
     // Convenience selector — avoids nullish checks in components.
     isAuthenticated: () => boolean;
+
+    setPendingEmail: (email: string) => void;
+
+    clearPendingEmail: () => void;
 }
 
+export const useAuthStore = create<AuthState>()(
+    devtools(
+        persist(
+            (set, get) => ({
+                user: null,
+                accessToken: null,
+                pendingEmail: null,
 
+                setAuth: (user, accessToken) => set({ user, accessToken }),
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-    user: null,
-    accessToken: null,
+                setAccessToken: (token) => set({ accessToken: token }),
 
-    setAuth: (user, accessToken) => set({ user, accessToken }),
+                clearAuth: () => set({ user: null, accessToken: null }),
 
-    setAccessToken: (token) => set({ accessToken: token }),
-
-    clearAuth: () => set({ user: null, accessToken: null }),
-
-    isAuthenticated: () => !!get().accessToken && !!get().user,
-}));
-
-interface AuthUIState {
-    resendCooldownStart: number | null; // timestamp when cooldown started
-    setResendCooldownStart: (ts: number) => void;
-    clearResendCooldown: () => void;
-}
-
-export const useAuthUIStore = create<AuthUIState>()(
-    persist(
-        (set) => ({
-            resendCooldownStart: null,
-            setResendCooldownStart: (ts) => set({ resendCooldownStart: ts }),
-            clearResendCooldown: () => set({ resendCooldownStart: null }),
-        }),
-        {
-            name: 'mintd_auth-ui', // session key
-            storage: createJSONStorage(() => sessionStorage),
-        }
-    )
-)
+                isAuthenticated: () => !!get().accessToken && !!get().user,
+                setPendingEmail: (email) => set({ pendingEmail: email }),
+                clearPendingEmail: () => set({ pendingEmail: null }),
+            }),
+            {
+                name: 'mintd_auth',
+                storage: createJSONStorage(() => sessionStorage),
+                partialize: (state) => ({ pendingEmail: state.pendingEmail }), // only persist pendingEmail to sessionStorage
+            },
+        ),
+        { name: 'AuthStore' },
+    ),
+);

@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import {  useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Image, { StaticImageData } from 'next/image';
+import Image from 'next/image';
 import { useTheme } from 'next-themes';
-import { CheckCircle2, Loader2, Mail, RefreshCw } from 'lucide-react';
+import {  Loader2,  RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/Auth.store';
 import {
@@ -29,10 +29,11 @@ const COOLDOWN_SECONDS = 60;
 export default function VerifyEmailPage() {
     const { resolvedTheme } = useTheme();
     const iconSrc = resolvedTheme === 'light' ? iconDark : iconLight;
-    const searchParams = useSearchParams();
     const router = useRouter();
-    const userEmail =
-        searchParams.get('email') ?? useAuthStore.getState().user?.email ?? '';
+    const searchParams = useSearchParams();
+    const source = searchParams.get('source') as 'login' | 'signup' | null;
+    const pendingEmail = useAuthStore((s) => s.pendingEmail);
+    const userEmail = pendingEmail;
     const { mutate: resend, isPending: isResending } = useResendVerification();
     const {
         mutate: verifyEmailOtp,
@@ -42,14 +43,17 @@ export default function VerifyEmailPage() {
         error,
     } = useVerifyEmail();
 
-    const [cooldown, setCooldown] = useState(0);
+    const [cooldown, setCooldown] = useState(() => 
+        // If coming from login, we already sent a code, so start with cooldown active.
+        source === 'login' ? COOLDOWN_SECONDS : 0,
+    );
     const [otp, setOtp] = useState('');
 
     //extract the server error message
     const errorMessage = isError
         ? ((error as AxiosError<{ message?: string }>)?.response?.data
               ?.message ?? 'Something went wrong. Please try again.')
-        : null;
+        : null; 
 
     // Tick down every second while cooldown is active
     useEffect(() => {
@@ -66,18 +70,17 @@ export default function VerifyEmailPage() {
             if (!userEmail) {
                 // this should never happen, but just in case
                 toast.error(
-                    'No email found for the user. Please log in again.',
+                    'Session expired. Please sign in again.',
                 );
                 router.push('/auth/login');
                 return;
             }
-            verifyEmailOtp({ email: userEmail, otp });
+            verifyEmailOtp(
+                { email: userEmail, otp },
+                { onError: () => setOtp('') },
+            );
         }
     }, [otp, verifyEmailOtp, userEmail, router, verifying]);
-
-    useEffect(() => {
-        if (isError) setOtp('');
-    }, [isError]);
     const handleOtpChange = (value: string) => {
         // Clear previous error state as soon as they start typing again
         if (isError) resetVerify();

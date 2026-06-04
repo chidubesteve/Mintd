@@ -46,7 +46,7 @@ const Header = () => {
     const isAdmin = user?.role === 'ADMIN';
     const navLinks = isAdmin ? ADMIN_NAV : VAULT_NAV;
 
-
+ console.log(useAuthStore.getState(), "Auth store");
     // KYC status badge colour — Collectors see this as a prompt to complete KYC
     const kycColour = {
         NOT_SUBMITTED: 'bg-muted-foreground',
@@ -104,9 +104,11 @@ const Header = () => {
                                 <button className='flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-primary-foreground/10 dark:hover:bg-foreground/10 transition-colors'>
                                     {/* Avatar with initials */}
                                     <Image
-                                        src={`"https://api.dicebear.com/9.x/initials/svg?seed=${user.fName} ${user.lName}`}
+                                        src={`https://api.dicebear.com/9.x/initials/svg?seed=${user.fName} ${user.lName}`}
                                         alt={`${user.fName}'s avatar`}
                                         className='w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-xs font-bold shrink-0'
+                                        width={32}
+                                        height={32}
                                     />
 
                                     <span className='hidden md:block text-sm font-medium text-primary-foreground dark:text-foreground'>

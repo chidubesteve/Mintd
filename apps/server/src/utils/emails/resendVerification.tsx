@@ -9,19 +9,21 @@ interface Props {
 export function ResendVerificationEmail({ userFName, otp }: Props) {
     return (
         <EmailLayout preview={`Your new Mintd verification code is ${otp}`}>
-            <Heading style={styles.heading}>
-                Here's your new verification code
-            </Heading>
+            <Heading style={styles.heading}>Don't worry, we've got you</Heading>
             <Text style={styles.text}>Hi {userFName},</Text>
             <Text style={styles.text}>
-                Your previous code expired — no problem. Here's a fresh one:
+                Whether your code expired, got lost in transit, or just vanished
+                into the void — here's a fresh one. No questions asked.
             </Text>
             <Section style={styles.otpContainer}>
                 <Text style={styles.otpCode}>{otp}</Text>
             </Section>
             <Text style={styles.subText}>
-                This code expires in <strong>10 minutes</strong>. Do not share
-                it with anyone.
+                This code expires in <strong>10 minutes</strong>. Keep it to
+                yourself.
+            </Text>
+            <Text style={styles.subText}>
+                If you didn't request this, you can safely ignore this email.
             </Text>
         </EmailLayout>
     );

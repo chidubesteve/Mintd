@@ -203,7 +203,7 @@ const Register = () => {
                                 type='checkbox'
                                 id='showPassword'
                                 className='accent-accent h-4 w-4'
-                                onChange={(p) => setShowPassword(!p)}
+                                onChange={() => setShowPassword(!showPassword)}
                                 aria-label={
                                     showPassword
                                         ? 'Hide password'

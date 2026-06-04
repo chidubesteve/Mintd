@@ -28,7 +28,7 @@ export function EmailLayout({ preview, children }: EmailLayoutProps) {
                     {/* Header */}
                     <Section style={styles.header}>
                         <Img
-                            src='https://ik.imagekit.io/uw2j2cj9gp/img-a03c9022-82c8-42ad-989b-dd12f58dcbc2.jpg'
+                            src='https://ik.imagekit.io/uw2j2cj9gp/logo-and-name-mixed.webp'
                             alt='Mintd'
                             height={36}
                             style={styles.logo}
@@ -71,8 +71,8 @@ export function EmailLayout({ preview, children }: EmailLayoutProps) {
                     {/* Footer */}
                     <Section style={styles.footer}>
                         <Text style={styles.footerText}>
-                            &copy; {new Date().getFullYear()} Mintd Ltd. All rights
-                            reserved.
+                            &copy; {new Date().getFullYear()} Mintd Ltd. All
+                            rights reserved.
                         </Text>
                         <Text style={styles.footerText}>
                             Mintd Ltd is a company registered in England and

@@ -74,10 +74,19 @@ apiClient.interceptors.response.use(
         // if the refresh token is also invalid.
         const isRefreshEndpoint =
             originalRequest?.url?.includes('/auth/refresh');
+        
+        const isPublicAuthEndpoint = [
+            '/auth/login',
+            '/auth/register',
+            '/auth/forgot-password',
+            '/auth/verify-email',
+            '/auth/resend-verification',
+            "/auth/reset-password",
+        ].some((path) => originalRequest?.url?.includes(path));
         if (
             error.response?.status !== 401 ||
             originalRequest._retry ||
-            isRefreshEndpoint
+            isRefreshEndpoint || isPublicAuthEndpoint
         ) {
             return Promise.reject(error);
         }
