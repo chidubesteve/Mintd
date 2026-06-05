@@ -78,3 +78,8 @@ export async function resetPassword(
     );
     return response.data;
 }
+
+export async function refreshSession(): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>('/auth/refresh');
+    return response.data;
+}
