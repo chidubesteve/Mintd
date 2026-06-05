@@ -11,6 +11,7 @@
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import QueryProvider from '@/providers/QueryProvider';
+import SessionProvider from '@/providers/SessionProvider';
 import { Toaster } from 'sonner';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -23,12 +24,15 @@ export default function MainLayout({
     return (
         <QueryProvider>
             <ThemeProvider attribute='class' defaultTheme='light' enableSystem>
-                <TooltipProvider>
-                    <Header />
-                    <main>{children}</main>
-                    <Footer />
-                </TooltipProvider>
-                <Toaster />
+                <SessionProvider>
+                    <TooltipProvider>
+                        <Header />
+                        <main>{children}</main>
+                        <Footer />
+                    </TooltipProvider>
+                    <Toaster />
+                </SessionProvider>
+  
             </ThemeProvider>
         </QueryProvider>
     );
