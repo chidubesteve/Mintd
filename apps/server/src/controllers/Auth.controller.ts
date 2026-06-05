@@ -243,6 +243,7 @@ export async function RefreshToken(req: Request, res: Response): Promise<void> {
         res.status(200).json({
             message: 'Token refreshed successfully',
             accessToken,
+            user,
         });
     } catch (error) {
         console.error('Refresh token error:', error);
