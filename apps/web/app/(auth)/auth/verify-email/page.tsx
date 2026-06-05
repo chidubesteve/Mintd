@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -47,7 +47,7 @@ export default function VerifyEmailPage() {
         source === 'login' ? COOLDOWN_SECONDS : 0,
     );
     const [otp, setOtp] = useState('');
-
+    const hasSubmittedRef = useRef(false); // to prevent multiple auto-submissions after clearPendingEmail() nulls the userEmail
     //extract the server error message
     const errorMessage = isError
         ? ((error as AxiosError<{ message?: string }>)?.response?.data
@@ -63,20 +63,24 @@ export default function VerifyEmailPage() {
         return () => clearInterval(id);
     }, [cooldown]);
 
-    // Token verification - auto submit when all 6 digits are ented in the input
+    // Token verification - auto submit when all 6 digits are entered in the input
     useEffect(() => {
-        if (otp.length === 6 && !verifying) {
-            if (!userEmail) {
-                // this should never happen, but just in case
-                toast.error('Session expired. Please sign in again.');
-                router.push('/auth/login');
-                return;
-            }
-            verifyEmailOtp(
-                { email: userEmail, otp },
-                { onError: () => setOtp('') },
-            );
+        if (otp.length !== 6 && verifying && hasSubmittedRef.current) return;
+        if (!userEmail) {
+            toast.error('Session expired. Please sign in again.');
+            router.push('/auth/login');
+            return;
         }
+        hasSubmittedRef.current = true;
+        verifyEmailOtp(
+            { email: userEmail, otp },
+            {
+                onError: () => {
+                    hasSubmittedRef.current = false;
+                    setOtp('');
+                },
+            },
+        );
     }, [otp, verifyEmailOtp, userEmail, router, verifying]);
     const handleOtpChange = (value: string) => {
         // Clear previous error state as soon as they start typing again
