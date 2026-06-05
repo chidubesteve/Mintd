@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from './ui/button';
-import { LogOut, ChevronDown, ShieldCheck, User } from 'lucide-react';
+import { LogOut, ChevronDown, ShieldCheck, User, Settings } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -101,7 +101,7 @@ const Header = () => {
                         // ── Authenticated state ─────────────────────────────
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className='flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-primary-foreground/10 dark:hover:bg-foreground/10 transition-colors'>
+                                <button className='flex items-center gap-2 rounded-full p-1.25 hover:bg-primary-foreground/10 dark:hover:bg-foreground/10 transition-colors'>
                                     {/* Avatar with initials */}
                                     <Image
                                         src={`https://api.dicebear.com/9.x/initials/svg?seed=${user.fName} ${user.lName}`}
@@ -109,6 +109,7 @@ const Header = () => {
                                         className='w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-xs font-bold shrink-0'
                                         width={32}
                                         height={32}
+                                        unoptimized
                                     />
 
                                     <span className='hidden md:block text-sm font-medium text-primary-foreground dark:text-foreground'>
@@ -146,12 +147,15 @@ const Header = () => {
 
                                 <DropdownMenuSeparator />
 
-                                <DropdownMenuItem asChild>
+                                <DropdownMenuItem
+                                    asChild
+                                    className='hover:bg-red-700'
+                                >
                                     <Link
                                         href='/settings'
                                         className='cursor-pointer'
                                     >
-                                        <User className='w-4 h-4 mr-2' />
+                                        <Settings className='w-4 h-4 mr-2 hover:text-white focus:text-white' />
                                         Account Settings
                                     </Link>
                                 </DropdownMenuItem>
@@ -172,9 +176,9 @@ const Header = () => {
                                     <DropdownMenuItem asChild>
                                         <Link
                                             href='/kyc'
-                                            className='cursor-pointer'
+                                            className='cursor-pointer '
                                         >
-                                            <ShieldCheck className='w-4 h-4 mr-2' />
+                                            <ShieldCheck className='w-4 h-4 mr-2 hover:text-white focus:text-white' />
                                             Complete Verification
                                         </Link>
                                     </DropdownMenuItem>
@@ -187,7 +191,7 @@ const Header = () => {
                                     disabled={isLoggingOut}
                                     className='text-destructive focus:text-destructive cursor-pointer'
                                 >
-                                    <LogOut className='w-4 h-4 mr-2' />
+                                    <LogOut className='w-4 h-4 mr-2 text-destructive' />
                                     {isLoggingOut
                                         ? 'Signing out...'
                                         : 'Sign Out'}
