@@ -4,8 +4,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Switch } from '@/components/ui/switch';
 import { Button } from './ui/button';
-import { LogOut, ChevronDown, ShieldCheck, User, Settings } from 'lucide-react';
+import { TbDeviceWatchPlus } from 'react-icons/tb';
+import {
+    LogOut,
+    ChevronDown,
+    ShieldCheck,
+    Settings,
+    Vault,
+} from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -21,16 +29,32 @@ import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import logoSrc from '@/public/logo-and-name-mixed.webp';
 import logoMobileSrc from '@/public/logo-mixed.webp';
 import { useTheme } from 'next-themes';
+import { Field, FieldLabel } from './ui/field';
+import PngIcon from './PngIcon';
+
+type NavLink = { href: string; label: string; icon?: React.ReactNode };
 
 // Routes that are only visible when authenticated
-const VAULT_NAV = [
-    { href: '/vault', label: 'Vault' },
-    { href: '/watch/register', label: 'Register Watch' },
+const VAULT_NAV: NavLink[] = [
+    {
+        href: '/vault',
+        label: 'Vault',
+        icon: <Vault className='text-current size-5! ' />,
+    },
+    {
+        href: '/watch/register',
+        label: 'Register Watch',
+        icon: <TbDeviceWatchPlus className=' text-current size-5!' />,
+    },
     { href: '/kyc', label: 'Verification' },
-    { href: '/mint', label: 'Mint Watch NFT' },
+    {
+        href: '/mint',
+        label: 'Mint Watch NFT',
+        icon: <PngIcon src='/NFT.png' size={18} />,
+    },
 ];
 
-const ADMIN_NAV = [
+const ADMIN_NAV: NavLink[] = [
     { href: '/admin', label: 'Dashboard' },
     { href: '/admin/kyc', label: 'KYC' },
     { href: '/admin/watches', label: 'Watches' },
@@ -46,7 +70,7 @@ const Header = () => {
     const isAdmin = user?.role === 'ADMIN';
     const navLinks = isAdmin ? ADMIN_NAV : VAULT_NAV;
 
- console.log(useAuthStore.getState(), "Auth store");
+    console.log(useAuthStore.getState(), 'Auth store');
     // KYC status badge colour — Collectors see this as a prompt to complete KYC
     const kycColour = {
         NOT_SUBMITTED: 'bg-muted-foreground',
@@ -147,6 +171,29 @@ const Header = () => {
 
                                 <DropdownMenuSeparator />
 
+                                {/* mobile only nav links, hidden on desktop */}
+                                {navLinks
+                                    .filter(({ href }) => href !== '/kyc')
+                                    .map(({ href, label, icon }) => (
+                                        <DropdownMenuItem
+                                            key={href}
+                                            asChild
+                                            className='md:hidden'
+                                        >
+                                            <Link
+                                                href={href}
+                                                className='cursor-pointer'
+                                            >
+                                                {icon && (
+                                                    <span className='mr-2 shrink-0 w-fit'>
+                                                        {icon}
+                                                    </span>
+                                                )}
+                                                {label}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    ))}
+
                                 <DropdownMenuItem
                                     asChild
                                     className='hover:bg-red-700'
@@ -155,7 +202,7 @@ const Header = () => {
                                         href='/settings'
                                         className='cursor-pointer'
                                     >
-                                        <Settings className='w-4 h-4 mr-2 hover:text-white focus:text-white' />
+                                        <Settings className='size-5! mr-2 hover:text-white focus:text-white' />
                                         Account Settings
                                     </Link>
                                 </DropdownMenuItem>
@@ -163,14 +210,6 @@ const Header = () => {
                                 {/* Theme toggle can be added here in the future for authenticated users */}
 
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    className='md:hidden flex items-center'
-                                    onClick={() =>
-                                        setTheme(isDark ? 'light' : 'dark')
-                                    }
-                                >
-                                    Change Theme: {isDark ? 'Light' : 'Dark'}
-                                </DropdownMenuItem>
 
                                 {!isAdmin && user.kycStatus !== 'APPROVED' && (
                                     <DropdownMenuItem asChild>
@@ -178,12 +217,29 @@ const Header = () => {
                                             href='/kyc'
                                             className='cursor-pointer '
                                         >
-                                            <ShieldCheck className='w-4 h-4 mr-2 hover:text-white focus:text-white' />
+                                            <ShieldCheck className='mr-2 hover:text-white focus:text-white size-5!' />
                                             Complete Verification
                                         </Link>
                                     </DropdownMenuItem>
                                 )}
 
+                                <DropdownMenuSeparator />
+                                <Field
+                                    className='flex items-center cursor-pointer select-none px-2 py-1.5 my-1 hover:bg-primary-foreground/10 dark:hover:bg-foreground/10 rounded-md'
+                                    orientation='horizontal'
+                                >
+                                    <Switch
+                                        checked={isDark}
+                                        onCheckedChange={(checked) =>
+                                            setTheme(checked ? 'dark' : 'light')
+                                        }
+                                        size='default'
+                                        className='data-[state=checked]:bg-accent cursor-pointer'
+                                    />
+                                    <FieldLabel className='cursor-pointer '>
+                                        {isDark ? 'Light mode' : 'Dark mode'}
+                                    </FieldLabel>
+                                </Field>
                                 <DropdownMenuSeparator />
 
                                 <DropdownMenuItem
@@ -191,7 +247,7 @@ const Header = () => {
                                     disabled={isLoggingOut}
                                     className='text-destructive focus:text-destructive cursor-pointer'
                                 >
-                                    <LogOut className='w-4 h-4 mr-2 text-destructive' />
+                                    <LogOut className='w-6 h-6 mr-2 text-destructive' />
                                     {isLoggingOut
                                         ? 'Signing out...'
                                         : 'Sign Out'}
