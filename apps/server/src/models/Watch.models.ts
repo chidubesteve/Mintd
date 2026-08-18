@@ -9,12 +9,20 @@ const WatchSchema = new Schema(
             type: String,
             required: true,
             validate: {
-                validator: (v: string) =>
-                    SUPPORTED_BRANDS.includes(
+                // `this` is the document being validated (must stay a regular
+                // function, not an arrow fn, to get that binding). Custom-brand
+                // submissions are intentionally exempt: they're always routed to
+                // PENDING_REVIEW for an admin to look at, so the enum is only
+                // there to stop the *standard* flow from accepting a typo'd or
+                // unsupported brand outright.
+                validator: function (this: { isCustomBrand?: boolean }, v: string) {
+                    if (this.isCustomBrand) return true;
+                    return SUPPORTED_BRANDS.includes(
                         v as (typeof SUPPORTED_BRANDS)[number],
-                    ),
+                    );
+                },
                 message: (props: { value: string }) =>
-                    `"${props.value}" is not a supported brand`,
+                    `"${props.value}" is not a supported brand. If it's genuinely missing from our catalogue, submit it as a custom brand for admin review instead.`,
             },
         },
         model: { type: String, required: true, trim: true },

@@ -5,7 +5,7 @@
  */
 
 import { apiClient } from '@/lib/axios';
-import { WatchRegistrationValues } from '@/app/upload-watch/validation/schema';
+import { WatchRegistrationValues } from '@/app/(main)/watch/register/validation/schema';
 
 export interface WatchImage {
     url: string;
@@ -18,7 +18,7 @@ export interface RegisteredWatch {
     assetId: string;
     brand: string;
     model: string;
-    reference: string;
+    reference?: string;
     serialNumber: string;
     status: string;
     catalogueMatch: boolean;
@@ -42,6 +42,11 @@ export interface WatchListItem {
     model: string;
     serialNumber: string;
     status: string;
+    isCustomBrand: boolean;
+    catalog: {
+        matched: boolean;
+        status: 'MATCHED' | 'PENDING_REVIEW' | 'REJECTED';
+    };
     images: WatchImage; // single object — backend returns primaryImage, not array
     createdAt: string;
 }
@@ -66,19 +71,22 @@ export async function registerWatch(
     formData.append('serialNumber', data.serialNumber);
     if (data.referenceNo) formData.append('reference', data.referenceNo);
     if (data.description) formData.append('description', data.description);
+    if (data.purchaseDate) formData.append('purchaseDate', data.purchaseDate);
 
     formData.append('isCustomBrand', data.isCustomBrand ? 'true' : 'false');
 
     const imageMeta = data.images.map(({ viewType, isPrimary }) => ({
-        viewType, isPrimary
+        viewType,
+        isPrimary,
     }));
     formData.append('imageMeta', JSON.stringify(imageMeta));
-    
+
     data.images.forEach(({ file }) => formData.append('images', file)); // multer expects all files under 'images' key
 
-
+    // NOTE: the watch routes are mounted at /api/watches (see server routes/index.ts),
+    // and the create endpoint is POST /api/watches — not /watch/register.
     const response = await apiClient.post<RegisterWatchResponse>(
-        '/watch/register',
+        '/watches',
         formData,
         {
             headers: {
@@ -104,4 +112,41 @@ export async function getUserWatches(): Promise<GetWatchesResponse> {
 export async function getWatchDetails(watchId: string): Promise<unknown> {
     const response = await apiClient.get(`/watches/${watchId}`);
     return response.data;
+}
+
+// ─── Catalogue lookups ──────────────────────────────────────────────────────
+// Backs the "identify your watch" step of the registration wizard. Brand →
+// model → reference are cascading queries against our seeded WatchCatalogue
+// collection (the WatchBase-API replacement), so the user gets a live
+// "verified" tick instead of us silently accepting anything they type.
+
+export interface CatalogueReference {
+    reference: string;
+    description?: string;
+}
+
+export async function getSupportedBrands(): Promise<string[]> {
+    const response = await apiClient.get<{ brands: string[] }>(
+        '/watches/catalogue/brands',
+    );
+    return response.data.brands;
+}
+
+export async function getModelsByBrand(brand: string): Promise<string[]> {
+    const response = await apiClient.get<{ models: string[] }>(
+        '/watches/catalogue/models',
+        { params: { brand } },
+    );
+    return response.data.models;
+}
+
+export async function getReferencesByBrandModel(
+    brand: string,
+    model: string,
+): Promise<CatalogueReference[]> {
+    const response = await apiClient.get<{ references: CatalogueReference[] }>(
+        '/watches/catalogue/references',
+        { params: { brand, model } },
+    );
+    return response.data.references;
 }

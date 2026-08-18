@@ -3,19 +3,14 @@
  */
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { WatchRegistrationValues } from '@/app/upload-watch/validation/schema';
-import { getUserWatches, getWatchDetails, registerWatch } from '@/services/Watch.service';
+import { WatchRegistrationValues } from '@/app/(main)/watch/register/validation/schema';
+import { registerWatch } from '@/services/Watch.service';
 import { extractErrorMessage } from './useAuthMutations';
+import { watchKeys } from '@/hooks/queries/useVault';
 import { AxiosError } from 'axios';
-
-export const watchKeys = {
-    all: ['watches'] as const,
-    lists: () => [...watchKeys.all, 'list'] as const,
-    detail: (id: string) => [...watchKeys.all, 'detail', id] as const,
-};
 
 export function useRegisterWatch() {
     const queryClient = useQueryClient();
@@ -36,23 +31,5 @@ export function useRegisterWatch() {
             router.push('/vault');
         },
         onError: (error: AxiosError) => toast.error(extractErrorMessage(error)),
-    });
-}
-
-export function useVault() {
-    return useQuery({
-        queryKey: watchKeys.lists(),
-        queryFn: getUserWatches,
-        staleTime: 5 * 60 * 1000,
-        select: (data) => data.watches,
-    });
-}
-
-export function useWatchDetails(watchId: string) {
-    return useQuery({
-        queryKey: watchKeys.detail(watchId),
-        queryFn: () => getWatchDetails(watchId),
-        enabled: !!watchId,
-        staleTime: 2 * 60 * 1000,
     });
 }

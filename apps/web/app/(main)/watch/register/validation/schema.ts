@@ -1,6 +1,6 @@
 import z from 'zod';
 
-const ACCEPTED_IMAGE_TYPES = [
+export const ACCEPTED_IMAGE_TYPES = [
     'image/jpeg',
     'image/png',
     'image/webp',
@@ -8,7 +8,7 @@ const ACCEPTED_IMAGE_TYPES = [
     'image/heif',
 ];
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+export const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
 export const VIEW_TYPES = ['front', 'back', 'left', 'right'] as const;
 export type ViewType = (typeof VIEW_TYPES)[number];
@@ -48,7 +48,14 @@ export const watchRegistrationSchema = z.object({
         .string()
         .max(500, 'Description must be less than 500 characters')
         .trim(),
-    isCustomBrand: z.boolean().default(false),
+    purchaseDate: z.string().trim().optional(),
+    // Deliberately not `.default(false)` — zod's input/output type split for
+    // defaulted fields makes this optional on the *input* side, which then
+    // fights react-hook-form's <WatchRegistrationValues> generic on
+    // useForm/zodResolver (TS2322: boolean | undefined not assignable to
+    // boolean). useForm's `defaultValues` already seeds this to `false`,
+    // so the zod default was redundant anyway.
+    isCustomBrand: z.boolean(),
     images: z
         .array(watchImageEntrySchema)
         .min(1, 'At least one image is required')

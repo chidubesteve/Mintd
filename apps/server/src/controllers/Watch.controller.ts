@@ -294,7 +294,10 @@ export async function getWatchDetailsHandler(
 ): Promise<void> {
     try {
         const { watchId } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(watchId)) {
+        if (
+            typeof watchId !== 'string' ||
+            !mongoose.Types.ObjectId.isValid(watchId)
+        ) {
             res.status(400).json({ message: 'Invalid watch ID' });
             return;
         }
