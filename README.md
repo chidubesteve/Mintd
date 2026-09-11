@@ -14,7 +14,12 @@ This example project includes:
 - Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
 
 ## Usage
-
+Note to self: the next course of action or the next thing to do would be to investigate why the hot store is empty during a refresh. We've seen that the verification flow and whatnot works, but after you finish them and once you verify your email, you're sent back to the login page. Once you have your email by inputting the OTP, you're sent back to the login page.
+I noticed two notifications or, to what do we call this thing again? Two sonnar notifications:
+1. One saying "Email successfully verified."
+2. One saying "Session expired. Please log in again."
+Obviously that is coming from the mutations file, or how do we look into that?
+When you log in, the header component is rendered to indicate that the user is logged in. You see your profile, you see the authenticated view, but once the page refreshes, it goes back to the unauthenticated view as if the user wasn't logged in. We need to look into why we are losing the auth data on page refresh.
 ### Running Tests
 
 To run all the tests in the project, execute the following command:
