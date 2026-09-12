@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -10,6 +11,14 @@ import iconDark from '@/public/logo-mixed-green.webp';
 import iconLight from '@/public/logo-mixed.webp';
 
 export default function InvalidTokenPage() {
+    return (
+        <Suspense fallback={null}>
+            <InvalidTokenContent />
+        </Suspense>
+    );
+}
+
+function InvalidTokenContent() {
     const { resolvedTheme } = useTheme();
     const iconSrc = resolvedTheme === 'light' ? iconDark : iconLight;
     const searchParams = useSearchParams();
