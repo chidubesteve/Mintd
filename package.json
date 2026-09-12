@@ -18,7 +18,7 @@
     "format": "turbo run format"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "packageManager": "npm@10.9.3",
   "keywords": [],
