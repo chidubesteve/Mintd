@@ -22,6 +22,7 @@ import {
     InputOTPSeparator,
     InputOTPSlot,
 } from '@/components/ui/input-otp';
+import maskEmail from '@/utils/maskEmail';
 
 const COOLDOWN_SECONDS = 60;
 
@@ -35,7 +36,7 @@ export default function VerifyEmailPage() {
 
 function VerifyEmailContent() {
     const { resolvedTheme } = useTheme();
-    const iconSrc = resolvedTheme === 'light' ? iconDark : iconLight;
+    const iconSrc = resolvedTheme === 'light' ? iconLight : iconDark;
     const router = useRouter();
     const searchParams = useSearchParams();
     const source = searchParams.get('source') as 'login' | 'signup' | null;
@@ -74,12 +75,11 @@ function VerifyEmailContent() {
 
     // Token verification - auto submit when all 6 digits are entered in the input
     useEffect(() => {
-        // Verification already succeeded — clearPendingEmail() is about to (or
-        // just did) null out userEmail while router.replace('/vault') is still
-        // in flight. Without this guard, that null re-triggers the effect and
-        // it misreads "just verified" as "session expired".
-        if (verified) return;
-        if (otp.length !== 6 && verifying && hasSubmittedRef.current) return;
+        // BLOCK EVERYTHING if the OTP is not 6 digits long. This prevents the RACE CONDITIONS AND FALL THROUGHS ON RENDER
+        if (otp.length !== 6) return;
+        // If a submission has finished successfully or is processing, we don't want to submit again. This prevents the RACE CONDITIONS, and post success state changes to create any effects as those are already handled in the `useVerifyEmail` mutation hook.
+        if (verifying || verified || hasSubmittedRef.current) return;
+
         if (!userEmail) {
             toast.error('Session expired. Please sign in again.');
             router.push('/auth/login');
@@ -90,7 +90,7 @@ function VerifyEmailContent() {
             { email: userEmail, otp },
             {
                 onError: () => {
-                    hasSubmittedRef.current = false;
+                    hasSubmittedRef.current = false; // unlock on error to allow retry
                     setOtp('');
                 },
             },
@@ -116,6 +116,10 @@ function VerifyEmailContent() {
             ? "Your account hasn't been verified yet. We've sent a fresh code to"
             : 'Enter the 6-digit code we sent to';
 
+    const slotClassName = isError
+        ? 'border-destructive text-destructive'
+        : 'h-12 dark:bg-input-bg dark:border-input-border text-white dark:placeholder-input-placeholder dark:transition-colors dark:duration-200 select-none !important';
+
     return (
         <div className='min-h-screen flex items-center justify-center bg-muted/30 p-6'>
             <div className='w-full max-w-sm'>
@@ -134,7 +138,7 @@ function VerifyEmailContent() {
                         <p className='text-sm text-muted-foreground'>
                             {subtext}{' '}
                             <span className='font-medium text-foreground'>
-                                {userEmail || 'your email address'}
+                                {maskEmail(userEmail)}
                             </span>
                         </p>
                     </div>
@@ -146,15 +150,14 @@ function VerifyEmailContent() {
                             value={otp}
                             onChange={handleOtpChange}
                             disabled={verifying}
+                            className=''
                         >
                             <InputOTPGroup>
                                 {[0, 1, 2].map((index) => (
                                     <InputOTPSlot
                                         key={index}
                                         index={index}
-                                        className={
-                                            isError ? 'border-destructive' : ''
-                                        }
+                                        className={slotClassName}
                                     />
                                 ))}
                             </InputOTPGroup>
@@ -165,9 +168,7 @@ function VerifyEmailContent() {
                                     <InputOTPSlot
                                         key={index}
                                         index={index}
-                                        className={
-                                            isError ? 'border-destructive' : ''
-                                        }
+                                        className={`bg-red-700 ${slotClassName}`}
                                     />
                                 ))}
                             </InputOTPGroup>
@@ -193,7 +194,7 @@ function VerifyEmailContent() {
                     <div className='flex gap-3'>
                         <Button
                             variant='outline'
-                            className='flex-1 h-11'
+                            className={`flex-1 h-11 ${slotClassName} cursor-pointer`}
                             onClick={handleResend}
                             disabled={isResending || cooldown > 0}
                         >
@@ -209,7 +210,7 @@ function VerifyEmailContent() {
 
                         <Button
                             variant='outline'
-                            className='flex-1 h-11'
+                            className={`flex-1 h-11 ${slotClassName} cursor-pointer`}
                             onClick={() => router.push('/auth/register')}
                         >
                             Update email

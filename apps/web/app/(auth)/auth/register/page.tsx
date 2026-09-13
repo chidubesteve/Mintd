@@ -93,7 +93,7 @@ const Register = () => {
                                     id='firstName'
                                     type='text'
                                     placeholder='John'
-                                    className='h-12'
+                                    className='h-12 dark:bg-input-bg dark:border-input-border dark:text-white dark:placeholder:text-input-placeholder dark:focus:border-input-focus dark:focus:ring-1 dark:ring-input-focus dark:focus:outline-none dark:transition-colors duration-200'
                                     {...register('firstName')}
                                 />
                                 {errors.firstName && (
@@ -124,7 +124,7 @@ const Register = () => {
                                     id='lastName'
                                     type='text'
                                     placeholder='Smith'
-                                    className='h-12'
+                                    className='h-12 dark:bg-input-bg dark:border-input-border dark:text-white dark:placeholder:text-input-placeholder dark:focus:border-input-focus dark:focus:ring-1 dark:ring-input-focus dark:focus:outline-none dark:transition-colors duration-200'
                                     {...register('lastName')}
                                 />
                                 {errors.lastName && (
@@ -143,7 +143,7 @@ const Register = () => {
                                 id='email'
                                 type='email'
                                 placeholder='your@email.com'
-                                className='h-12'
+                                className='h-12 dark:bg-input-bg dark:border-input-border dark:text-white dark:placeholder:text-input-placeholder dark:focus:border-input-focus dark:focus:ring-1 dark:ring-input-focus dark:focus:outline-none dark:transition-colors duration-200'
                                 {...register('email')}
                             />
                             {errors.email && (
@@ -165,7 +165,7 @@ const Register = () => {
                                     id='password'
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder='Create a strong password'
-                                    className='h-12'
+                                    className='h-12 dark:bg-input-bg dark:border-input-border dark:text-white dark:placeholder:text-input-placeholder dark:focus:border-input-focus dark:focus:ring-1 dark:ring-input-focus dark:focus:outline-none dark:transition-colors duration-200'
                                     {...register('password')}
                                 />
                             </div>
@@ -187,7 +187,7 @@ const Register = () => {
                                     id='confirmPassword'
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder='Repeat your password'
-                                    className='h-12'
+                                    className='h-12 dark:bg-input-bg dark:border-input-border dark:text-white dark:placeholder:text-input-placeholder dark:focus:border-input-focus dark:focus:ring-1 dark:ring-input-focus dark:focus:outline-none dark:transition-colors duration-200'
                                     {...register('confirmPassword')}
                                 />
                             </div>
