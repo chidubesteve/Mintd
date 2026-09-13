@@ -132,6 +132,12 @@
   --muted-foreground: hsl(150 10% 60%);
   --border: hsl(155 20% 20%);
   --input: hsl(155 20% 20%);
+  --input-bg: #132D23;
+  --input-border: #1D4435;
+  --input-placeholder: #A3B8AE;
+  
+  /* Vibrant mint focus accent to guide active typing */
+  --input-focus: #4ADE80;
   
   /* Dark mode shadows */
   --shadow-subtle: 0 1px 3px hsl(0 0% 0% / 0.2);

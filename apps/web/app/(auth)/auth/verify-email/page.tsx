@@ -116,9 +116,51 @@ function VerifyEmailContent() {
             ? "Your account hasn't been verified yet. We've sent a fresh code to"
             : 'Enter the 6-digit code we sent to';
 
-    const slotClassName = isError
-        ? 'border-destructive text-destructive'
-        : 'h-12 dark:bg-input-bg dark:border-input-border text-white dark:placeholder-input-placeholder dark:transition-colors dark:duration-200 select-none !important';
+const otpSlotClassName = [
+    'h-12',
+    'border',
+    'bg-background text-foreground',
+
+    'dark:bg-[var(--input-bg)]',
+    'dark:border-[var(--input-border)]',
+    'dark:text-[var(--input-placeholder)]',
+
+    'transition-[background-color,border-color,box-shadow]',
+    'duration-300 ease-out',
+
+    'data-[active=true]:border-accent',
+    'data-[active=true]:ring-2',
+    'data-[active=true]:ring-accent/30',
+
+    isError &&
+        'border-destructive text-destructive dark:border-destructive dark:text-destructive',
+]
+    .filter(Boolean)
+        .join(' ');
+    
+    const actionButtonClassName = [
+        'flex-1 h-11 cursor-pointer',
+        'dark:bg-[#0C1D13]',
+        'dark:border-[#234D3B]',
+        'dark:text-white',
+
+        'transition-[color,background-color,border-color,box-shadow,transform]',
+        'duration-300 ease-out',
+
+        'hover:-translate-y-0.5',
+        'hover:bg-[#132D23]',
+        'hover:border-[#4D9A79]',
+        'hover:shadow-md',
+
+        'active:translate-y-0',
+        'active:scale-[0.99]',
+        'active:duration-150',
+
+        'disabled:translate-y-0',
+        'disabled:scale-100',
+    ]
+        .filter(Boolean)
+        .join(' ');
 
     return (
         <div className='min-h-screen flex items-center justify-center bg-muted/30 p-6'>
@@ -150,14 +192,14 @@ function VerifyEmailContent() {
                             value={otp}
                             onChange={handleOtpChange}
                             disabled={verifying}
-                            className=''
+                            id={'otp-input'}
                         >
                             <InputOTPGroup>
                                 {[0, 1, 2].map((index) => (
                                     <InputOTPSlot
                                         key={index}
                                         index={index}
-                                        className={slotClassName}
+                                        className={otpSlotClassName}
                                     />
                                 ))}
                             </InputOTPGroup>
@@ -168,7 +210,7 @@ function VerifyEmailContent() {
                                     <InputOTPSlot
                                         key={index}
                                         index={index}
-                                        className={`bg-red-700 ${slotClassName}`}
+                                        className={`bg-red-700 ${otpSlotClassName}`}
                                     />
                                 ))}
                             </InputOTPGroup>
@@ -194,7 +236,7 @@ function VerifyEmailContent() {
                     <div className='flex gap-3'>
                         <Button
                             variant='outline'
-                            className={`flex-1 h-11 ${slotClassName} cursor-pointer`}
+                            className={`flex-1 h-11 ${actionButtonClassName} cursor-pointer`}
                             onClick={handleResend}
                             disabled={isResending || cooldown > 0}
                         >
@@ -210,7 +252,7 @@ function VerifyEmailContent() {
 
                         <Button
                             variant='outline'
-                            className={`flex-1 h-11 ${slotClassName} cursor-pointer`}
+                            className={`flex-1 h-11 ${actionButtonClassName} cursor-pointer`}
                             onClick={() => router.push('/auth/register')}
                         >
                             Update email
@@ -220,16 +262,16 @@ function VerifyEmailContent() {
                     <p className='text-xs text-muted-foreground text-center'>
                         Can&apos;t find it? Check your spam folder.
                     </p>
-                </div>
-
                 <p className='text-center text-sm text-muted-foreground mt-6'>
                     <Link
                         href='/auth/login'
-                        className='text-accent hover:underline font-medium'
+                        className='text-accent hover:underline font-medium dark:text-white'
                     >
                         Back to sign in
                     </Link>
                 </p>
+                </div>
+
             </div>
         </div>
     );
