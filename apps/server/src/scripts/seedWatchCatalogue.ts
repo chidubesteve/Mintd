@@ -3,7 +3,6 @@
  */
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import data from '../seed/data/Mintd v1.1 Database.json';
 import fs from 'fs';
 import path from 'path';
 import {
