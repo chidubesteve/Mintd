@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { Sparkles } from 'lucide-react';
 import {
@@ -51,23 +51,28 @@ const PhotosStep = ({
         () => existingImages?.find((img) => img.isPrimary)?.viewType ?? null,
     );
 
-    // Object URLs for previews — created/cleaned up as files change.
-    const previewUrls = useMemo(() => {
+    // Object URLs for previews — created/revoked inside the effect (not
+    // during render) so React 18 Strict Mode's dev-only mount->cleanup->
+    // mount cycle doesn't revoke a URL before it's painted. That matters
+    // here because this step can remount with files already in `slots`
+    // (e.g. navigating back from Review), not just on first upload.
+    const [previewUrls, setPreviewUrls] = useState<
+        Partial<Record<ViewType, string>>
+    >({});
+
+    useEffect(() => {
         const urls: Partial<Record<ViewType, string>> = {};
         VIEW_TYPES.forEach((v) => {
             const f = slots[v];
             if (f) urls[v] = URL.createObjectURL(f);
         });
-        return urls;
-    }, [slots]);
-
-    useEffect(() => {
+        setPreviewUrls(urls);
         return () => {
-            Object.values(previewUrls).forEach((url) => {
+            Object.values(urls).forEach((url) => {
                 if (url) URL.revokeObjectURL(url);
             });
         };
-    }, [previewUrls]);
+    }, [slots]);
 
     // Push local state into the form whenever it changes.
     useEffect(() => {
