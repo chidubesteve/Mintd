@@ -119,7 +119,7 @@ function StrictSelect({
                         type='button'
                         disabled={disabled}
                         className={cn(
-                            'h-12 w-full rounded-md border border-input bg-transparent px-3 text-sm flex items-center justify-between gap-2 transition-colors',
+                            'h-12 w-full rounded-md border border-input dark:border-gray-400 bg-transparent px-3 text-sm flex items-center justify-between gap-2 transition-colors',
                             'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none',
                             disabled && 'opacity-50 cursor-not-allowed',
                         )}
