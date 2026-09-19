@@ -70,7 +70,6 @@ const Header = () => {
     const isAdmin = user?.role === 'ADMIN';
     const navLinks = isAdmin ? ADMIN_NAV : VAULT_NAV;
 
-    console.log(useAuthStore.getState(), 'Auth store');
     // KYC status badge colour — Collectors see this as a prompt to complete KYC
     const kycColour = {
         NOT_SUBMITTED: 'bg-muted-foreground',

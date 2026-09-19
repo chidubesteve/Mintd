@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -26,6 +26,14 @@ import {
 const COOLDOWN_SECONDS = 60;
 
 export default function VerifyEmailPage() {
+    return (
+        <Suspense fallback={null}>
+            <VerifyEmailContent />
+        </Suspense>
+    );
+}
+
+function VerifyEmailContent() {
     const { resolvedTheme } = useTheme();
     const iconSrc = resolvedTheme === 'light' ? iconDark : iconLight;
     const router = useRouter();
@@ -37,6 +45,7 @@ export default function VerifyEmailPage() {
     const {
         mutate: verifyEmailOtp,
         isPending: verifying,
+        isSuccess: verified,
         isError,
         reset: resetVerify,
         error,
@@ -65,6 +74,11 @@ export default function VerifyEmailPage() {
 
     // Token verification - auto submit when all 6 digits are entered in the input
     useEffect(() => {
+        // Verification already succeeded — clearPendingEmail() is about to (or
+        // just did) null out userEmail while router.replace('/vault') is still
+        // in flight. Without this guard, that null re-triggers the effect and
+        // it misreads "just verified" as "session expired".
+        if (verified) return;
         if (otp.length !== 6 && verifying && hasSubmittedRef.current) return;
         if (!userEmail) {
             toast.error('Session expired. Please sign in again.');
@@ -81,7 +95,7 @@ export default function VerifyEmailPage() {
                 },
             },
         );
-    }, [otp, verifyEmailOtp, userEmail, router, verifying]);
+    }, [otp, verifyEmailOtp, userEmail, router, verifying, verified]);
     const handleOtpChange = (value: string) => {
         // Clear previous error state as soon as they start typing again
         if (isError) resetVerify();
