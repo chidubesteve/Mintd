@@ -55,7 +55,7 @@ const ImageUploadSlot = ({
                     ? 'border-accent bg-accent/5'
                     : file
                       ? 'border-border'
-                      : 'border-border hover:border-accent/40',
+                      : 'border-border dark:border-[var(--input-border)] dark:bg-[var(--input-bg)] hover:border-accent/40',
             )}
             onDragOver={(e) => {
                 e.preventDefault();
@@ -115,7 +115,7 @@ const ImageUploadSlot = ({
                                 <button
                                     type='button'
                                     onClick={onSetPrimary}
-                                    className='text-[11px] font-medium bg-white/90 hover:bg-white text-foreground px-2 py-0.5 rounded-full shadow transition-colors'
+                                    className='text-[11px] font-medium bg-white/90 hover:bg-white text-neutral-900 px-2 py-0.5 rounded-full shadow transition-colors'
                                 >
                                     Set as primary
                                 </button>

@@ -32,6 +32,16 @@ export async function uploadWatchHandler(
     try {
         const userId = req.user!.userId; // from auth middleware
 
+        // Multer must run first — req.body is undefined for a multipart
+        // request until multer parses it, since the request isn't JSON/
+        // urlencoded and no other body-parser handles multipart/form-data.
+        try {
+            await runMulter(watchImageUpload, req, res);
+        } catch (uploadErr: any) {
+            res.status(400).json({ message: uploadErr.message });
+            return;
+        }
+
         const {
             brand,
             model,
@@ -47,13 +57,6 @@ export async function uploadWatchHandler(
             res.status(400).json({
                 message: 'Brand, model, and serial number are required',
             });
-            return;
-        }
-
-        try {
-            await runMulter(watchImageUpload, req, res);
-        } catch (uploadErr: any) {
-            res.status(400).json({ message: uploadErr.message });
             return;
         }
 
@@ -126,7 +129,6 @@ export async function uploadWatchHandler(
         // but it cannot proceed to minting until an admin approves it - this i think would also be invoked in the client, as the mint button would be disable until the watch is approved.
 
         //TODO: Call WatchBase API here to verify model and get watchbaseId/familyId. For now we'll skip this step and just create the watch record with the provided data.
-        // Step 1: Run multer to parse the multipart form
 
         // TODO: paraventure the watch is not found on watchbase or there's some form of ambiguity, we should set its status to PENDING_REVIEW and send it tot he admin dashboard for manual review. For now we'll assume all watches are verified and matched successfully.
 
