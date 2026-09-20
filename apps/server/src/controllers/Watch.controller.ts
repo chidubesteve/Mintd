@@ -179,6 +179,9 @@ export async function uploadWatchHandler(
                         file.originalname,
                         meta.viewType,
                         meta.isPrimary,
+                        catalogueStatus === 'MATCHED'
+                            ? 'MATCHED'
+                            : 'PENDING_REVIEW',
                     );
                     uploadedFileIds.push(uploadResult.fileId);
                     return uploadResult;
