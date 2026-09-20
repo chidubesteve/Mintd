@@ -115,7 +115,7 @@ const ImageUploadSlot = ({
                                 <button
                                     type='button'
                                     onClick={onSetPrimary}
-                                    className='text-[11px] font-medium bg-white/90 hover:bg-white text-neutral-900 px-2 py-0.5 rounded-full shadow transition-colors'
+                                    className='text-[11px] font-medium bg-white/90 hover:bg-white text-neutral-900 px-2 py-0.5 rounded-full shadow transition-colors hover:cursor-pointer'
                                 >
                                     Set as primary
                                 </button>

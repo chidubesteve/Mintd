@@ -50,6 +50,7 @@ export async function uploadWatchHandler(
             reference,
             description,
         } = req.body;
+        console.log("brand", brand);
 
         const isCustomBrand = req.body.isCustomBrand === 'true';
 
