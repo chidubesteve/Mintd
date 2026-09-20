@@ -41,6 +41,7 @@ export async function uploadWatchHandler(
             res.status(400).json({ message: uploadErr.message });
             return;
         }
+        console.log("req.body", req.body);
 
         const {
             brand,
@@ -50,6 +51,7 @@ export async function uploadWatchHandler(
             reference,
             description,
         } = req.body;
+        console.log("brand", brand);
 
         const isCustomBrand = req.body.isCustomBrand === 'true';
 

@@ -141,7 +141,7 @@ const IdentifyStep = ({
                         Description
                     </label>
                     <Textarea
-                        placeholder='Anything that helps us identify this watch — dial colour, bracelet, notable features…'
+                        placeholder='Anything that helps us identify this watch; dial colour, bracelet, notable features…'
                         rows={3}
                         {...register('description')}
                     />
@@ -246,7 +246,7 @@ const IdentifyStep = ({
                                 <SearchIcon className='w-3.5 h-3.5 text-muted-foreground' />
                                 <span className='text-muted-foreground'>
                                     We couldn&apos;t match this exact
-                                    reference — it&apos;ll be sent for a
+                                    reference. it&apos;ll be sent for a
                                     quick admin review after you submit.
                                 </span>
                             </>
