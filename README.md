@@ -60,30 +60,3 @@ After setting the variable, you can run the deployment with the Sepolia network:
 ```shell
 npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
 ```
-
-## Known/accepted `npm audit` findings
-
-Running `npm audit` at the repo root will still report vulnerabilities in two
-dependency chains that are deliberately left unfixed. Both were reviewed and
-accepted rather than force-upgraded, because the suggested fixes are breaking
-changes to dev-only tooling in `packages/contracts`, not to any code that
-runs in production:
-
-- **`diff` / `serialize-javascript`** (via `mocha@^11.7.5`, a direct
-  devDependency of `packages/contracts`, also required by
-  `@nomicfoundation/hardhat-toolbox-mocha-ethers@^3.0.2` which pins
-  `mocha: ^11.0.0`). The audit's suggested fix is `mocha@12.0.1`, which
-  breaks that peer range. Neither vulnerable package is imported by any
-  source file in this repo — they're mocha's own internal diff-rendering and
-  result-serialization for failed test assertions, never exposed to
-  untrusted input. **Revisit** once `hardhat-toolbox-mocha-ethers` ships a
-  major version supporting `mocha@12`.
-- **`elliptic`** (via `ethers@^6.16.0`, a direct devDependency of
-  `packages/contracts` used only for local Hardhat deploy/test scripts —
-  not a production signing path). The advisory itself states **no fix is
-  available upstream**. **Revisit** on the next `ethers` major bump, or if
-  an upstream patch for `elliptic` is released.
-
-The one production-facing finding with a fix (a critical Next.js CVE, plus
-the `sharp`/`postcss` copies bundled inside it) was addressed by bumping
-`next`/`eslint-config-next` in `apps/web` to `16.3.5` — no `--force` needed.

@@ -24,9 +24,10 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
         res.status(401).json({
             message: 'Missing or invalid authorization header',
         });
+        return;
     }
 
-    const token = header!.split(' ')[1];
+    const token = header.split(' ')[1];
 
     try {
         const payload = verifyAccessToken(token);

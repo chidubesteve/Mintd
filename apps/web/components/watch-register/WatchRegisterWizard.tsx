@@ -99,7 +99,7 @@ const WatchRegisterWizard = () => {
                             <Button
                                 type='submit'
                                 disabled={isPending}
-                                className='bg-accent text-accent-foreground hover:bg-accent/90 px-6'
+                                className='bg-accent text-accent-foreground hover:bg-accent/90 px-6 hover:cursor-pointer disabled:cursor-not-allowed disabled:bg-accent/50 disabled:text-accent-foreground/70'
                             >
                                 {isPending ? (
                                     <>

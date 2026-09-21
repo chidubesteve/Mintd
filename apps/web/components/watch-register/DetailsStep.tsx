@@ -25,8 +25,7 @@ const DetailsStep = ({
                 <p className='text-xs text-muted-foreground'>
                     Usually engraved between the lugs or on the case back.
                     This is what ties your watch to its digital certificate,
-                    so it must be unique — one Mintd registration per
-                    physical watch.
+                    so it must be unique.
                 </p>
                 {formState.errors.serialNumber && (
                     <p className='text-xs text-destructive'>
@@ -49,7 +48,7 @@ const DetailsStep = ({
                     {...register('purchaseDate')}
                 />
                 <p className='text-xs text-muted-foreground'>
-                    Helps establish provenance — you can always add this
+                    Helps establish provenance. You can always add this
                     later.
                 </p>
             </div>

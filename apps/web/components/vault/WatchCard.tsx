@@ -40,7 +40,7 @@ const WatchCard = ({ watch }: { watch: WatchListItem }) => {
             className='group block rounded-xl border border-border bg-card overflow-hidden shadow-subtle transition-all duration-300 hover:-translate-y-1 hover:shadow-luxury hover:border-accent/30'
         >
             {/* Image */}
-            <div className='relative aspect-[4/3] bg-muted overflow-hidden'>
+            <div className='relative aspect-4/3 bg-muted overflow-hidden'>
                 {imageUrl ? (
                     <Image
                         src={imageUrl}

@@ -28,11 +28,33 @@ export interface UploadedWatchImage {
  *   f-webp         → convert to WebP (typically 30-50% smaller than JPEG)
  *   q-90           → quality 90 (good balance of size vs. clarity for watch detail)
  *   w-1200         → standardise width to 1200px (enough for NFT display)
+ *
+ * Overlay choice depends on where the watch is in its verification journey.
+ * Only MATCHED and PENDING_REVIEW are wired in below, because those are the
+ * only two states known at registration time (see Watch.controller.ts,
+ * where catalogueStatus is resolved before the upload loop runs). CERTIFIED
+ * only exists in the map for when the KYC/KYA flow is actually built — it's
+ * not reachable from any code path yet, since nothing sets a watch to
+ * CERTIFIED today. When that flow lands, it should NOT reuse this
+ * upload-time approach: this bakes the overlay into a URL stored once on
+ * the Watch document, so a watch that goes from PENDING_REVIEW to CERTIFIED
+ * later would keep showing its old badge forever unless something
+ * recomputes and overwrites the stored url. The correct fix then is to stop
+ * persisting a final url and instead build the transform URL on demand from
+ * originalUrl + the watch's current status whenever it's served to the
+ * client — that's what ImageKit's on-the-fly transforms are for.
  */
+const OVERLAY_LOGOS: Record<'MATCHED' | 'PENDING_REVIEW', string> = {
+    MATCHED: 'https://ik.imagekit.io/uw2j2cj9gp/catalogue_matched_mintd.png',
+    PENDING_REVIEW: 'https://ik.imagekit.io/uw2j2cj9gp/Pending_review_mintd.png',
+};
 
-function buildProcessedImageUrl(originalUrl: string): string {
+function buildProcessedImageUrl(
+    originalUrl: string,
+    catalogueStatus: 'MATCHED' | 'PENDING_REVIEW',
+): string {
     const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || '';
-    const overlaypath = 'https://ik.imagekit.io/uw2j2cj9gp/icon-dark.png'; // i have uploaded the image for overlay to my media library in imagekit. it is the logo of mintd and rhat is what we'd use, it would be placed at the top left corner and would be semi transparent so as to not distract from the watch but still provide branding and a consistent look across all NFTs. we can adjust the size, position, and opacity of the overlay in the transformation parameters to get the right balance.
+    const overlaypath = OVERLAY_LOGOS[catalogueStatus];
 
     // extract the path of the original url
     const filePath = originalUrl.replace(urlEndpoint, '');
@@ -47,6 +69,7 @@ export async function uploadWatchImage(
     originalFileName: string,
     viewType: 'front' | 'back' | 'left' | 'right',
     isPrimary: boolean,
+    catalogueStatus: 'MATCHED' | 'PENDING_REVIEW',
 ): Promise<UploadedWatchImage> {
     const originalHash = crypto
         .createHash('sha256')
@@ -61,7 +84,7 @@ export async function uploadWatchImage(
     const uploadResponse = await imageKit.files.upload({
         file: fileBuffer.toString('base64'), // fileBuffer,
         fileName: fileName,
-        folder: `watches/originals/${fileName}`,
+        folder: 'watches/originals',
         useUniqueFileName: false, // we are already making the file name unique with the suffix
         tags: [`watch-${viewType}`, `filename-${fileName}`],
         isPrivateFile: false,
@@ -74,7 +97,7 @@ export async function uploadWatchImage(
     return {
         fileId: uploadResponse.fileId,
         originalUrl: uploadResponse.url,
-        processedUrl: buildProcessedImageUrl(uploadResponse.url),
+        processedUrl: buildProcessedImageUrl(uploadResponse.url, catalogueStatus),
         originalHash,
         isPrimary,
         viewType,
