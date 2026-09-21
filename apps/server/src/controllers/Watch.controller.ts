@@ -50,7 +50,6 @@ export async function uploadWatchHandler(
             reference,
             description,
         } = req.body;
-        console.log("brand", brand);
 
         const isCustomBrand = req.body.isCustomBrand === 'true';
 
@@ -185,6 +184,7 @@ export async function uploadWatchHandler(
                             : 'PENDING_REVIEW',
                     );
                     uploadedFileIds.push(uploadResult.fileId);
+                    console.log(`Upload result: ${JSON.stringify(uploadResult)}`);
                     return uploadResult;
                 }),
             );
