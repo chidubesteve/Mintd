@@ -1,6 +1,6 @@
 // This is for a real world watch
 import { model, Schema } from 'mongoose';
-import { SUPPORTED_BRANDS } from '../constants/supported_brands';
+import { WatchCatalogue } from './WatchCatalogue.model';
 
 const WatchSchema = new Schema(
     {
@@ -12,14 +12,23 @@ const WatchSchema = new Schema(
                 // `this` is the document being validated (must stay a regular
                 // function, not an arrow fn, to get that binding). Custom-brand
                 // submissions are intentionally exempt: they're always routed to
-                // PENDING_REVIEW for an admin to look at, so the enum is only
+                // PENDING_REVIEW for an admin to look at, so this check is only
                 // there to stop the *standard* flow from accepting a typo'd or
                 // unsupported brand outright.
-                validator: function (this: { isCustomBrand?: boolean }, v: string) {
+                //
+                // Checked against WatchCatalogue rather than a hardcoded list —
+                // admins add brands to the catalogue from the review queue, and
+                // those need to be immediately valid for the standard flow, not
+                // require a code change to a static constant.
+                validator: async function (
+                    this: { isCustomBrand?: boolean },
+                    v: string,
+                ) {
                     if (this.isCustomBrand) return true;
-                    return SUPPORTED_BRANDS.includes(
-                        v as (typeof SUPPORTED_BRANDS)[number],
-                    );
+                    const exists = await WatchCatalogue.exists({
+                        brand: v,
+                    }).collation({ locale: 'en', strength: 2 });
+                    return !!exists;
                 },
                 message: (props: { value: string }) =>
                     `"${props.value}" is not a supported brand. If it's genuinely missing from our catalogue, submit it as a custom brand for admin review instead.`,
