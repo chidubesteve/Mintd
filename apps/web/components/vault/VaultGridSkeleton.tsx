@@ -6,7 +6,7 @@ const VaultGridSkeleton = () => {
                     key={i}
                     className='rounded-xl border border-border bg-card overflow-hidden animate-pulse'
                 >
-                    <div className='aspect-[4/3] bg-muted' />
+                    <div className='aspect-4/3 bg-muted' />
                     <div className='p-4 space-y-2'>
                         <div className='h-3.5 w-2/3 rounded bg-muted' />
                         <div className='h-3 w-1/3 rounded bg-muted' />
