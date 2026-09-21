@@ -44,9 +44,13 @@ export interface UploadedWatchImage {
  * originalUrl + the watch's current status whenever it's served to the
  * client — that's what ImageKit's on-the-fly transforms are for.
  */
+// Paths relative to the media library root (both overlays live at the root,
+// same account as the watch photos) — NOT full URLs. ImageKit's overlay
+// layer resolves `i-<path>` against your own library; a fully-qualified
+// external URL needs a different (base64-url) form we don't need here.
 const OVERLAY_LOGOS: Record<'MATCHED' | 'PENDING_REVIEW', string> = {
-    MATCHED: 'https://ik.imagekit.io/uw2j2cj9gp/catalogue_matched_mintd.png',
-    PENDING_REVIEW: 'https://ik.imagekit.io/uw2j2cj9gp/Pending_review_mintd.png',
+    MATCHED: 'catalogue_matched_mintd.png',
+    PENDING_REVIEW: 'Pending_review_mintd.png',
 };
 
 function buildProcessedImageUrl(
@@ -54,13 +58,17 @@ function buildProcessedImageUrl(
     catalogueStatus: 'MATCHED' | 'PENDING_REVIEW',
 ): string {
     const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || '';
-    const overlaypath = OVERLAY_LOGOS[catalogueStatus];
+    const overlayPath = OVERLAY_LOGOS[catalogueStatus];
 
     // extract the path of the original url
     const filePath = originalUrl.replace(urlEndpoint, '');
 
-    // build the transformation string
-    const transforms = `e-bgremove,l-${encodeURIComponent(overlaypath)},lx-30,f-webp,q-90,w-1200`;
+    // Layer transforms are their own block: `l-image` opens it, `i-<path>`
+    // names the overlay, `l-end` closes it. The previous version wrote
+    // `l-<url>` directly, which isn't valid ImageKit syntax at all — there
+    // was no `l-image`/`i-`/`l-end`, so every processed-image request
+    // failed with "invalid transformation".
+    const transforms = `e-bgremove,l-image,i-${encodeURIComponent(overlayPath)},lx-30,l-end,f-webp,q-90,w-1200`;
     return `${urlEndpoint}${filePath}?tr=${transforms}`;
 }
 

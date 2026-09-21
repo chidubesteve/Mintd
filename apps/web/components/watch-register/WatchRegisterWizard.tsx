@@ -30,6 +30,7 @@ const STEP_FIELDS: (keyof WatchRegistrationValues)[][] = [
 
 const WatchRegisterWizard = () => {
     const [step, setStep] = useState(0);
+    const [maxStepReached, setMaxStepReached] = useState(0);
     const { mutate: submitWatch, isPending } = useRegisterWatch();
 
     const form = useForm<WatchRegistrationValues>({
@@ -51,11 +52,21 @@ const WatchRegisterWizard = () => {
         const fields = STEP_FIELDS[step];
         const valid = fields.length ? await form.trigger(fields) : true;
         if (!valid) return;
-        setStep((s) => Math.min(s + 1, STEPS.length - 1));
+        const next = Math.min(step + 1, STEPS.length - 1);
+        setStep(next);
+        setMaxStepReached((m) => Math.max(m, next));
     }
 
     function handleBack() {
         setStep((s) => Math.max(s - 1, 0));
+    }
+
+    function handleStepClick(target: number) {
+        // Always safe to jump back to a step already reached — going
+        // forward past where the user has actually validated to isn't
+        // offered (StepHeader disables those buttons), so no re-validation
+        // is needed here.
+        if (target <= maxStepReached) setStep(target);
     }
 
     function onSubmit(values: WatchRegistrationValues) {
@@ -64,7 +75,12 @@ const WatchRegisterWizard = () => {
 
     return (
         <div className='w-full max-w-2xl mx-auto'>
-            <StepHeader steps={STEPS} current={step} />
+            <StepHeader
+                steps={STEPS}
+                current={step}
+                maxReached={maxStepReached}
+                onStepClick={handleStepClick}
+            />
 
             <div className='bg-card rounded-2xl border border-border shadow-luxury p-6 sm:p-8'>
                 <form onSubmit={form.handleSubmit(onSubmit)}>

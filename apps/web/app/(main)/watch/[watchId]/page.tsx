@@ -13,10 +13,16 @@
 import { use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Clock, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, Sparkles, ShieldCheck, Info } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CopyButton } from '@/components/ui/copy-button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useWatchDetails } from '@/hooks/queries/useVault';
 
 interface WatchImage {
@@ -147,9 +153,21 @@ const WatchDetailPage = ({
                     <h1 className='text-2xl md:text-3xl font-bold text-foreground'>
                         {watch.brand} {watch.model}
                     </h1>
-                    <p className='text-sm text-muted-foreground font-mono mt-1'>
+                    <p className='text-sm text-muted-foreground font-mono mt-1 inline-flex items-center gap-1.5'>
                         {watch.reference ? `Ref. ${watch.reference} · ` : ''}
                         {watch.assetId}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Info className='w-3.5 h-3.5 cursor-help' />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className='max-w-56'>
+                                    Your asset ID. Use this to identify this
+                                    watch on Mintd.
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <CopyButton value={watch.assetId} label='Copy asset ID' />
                     </p>
 
                     {watch.description && (

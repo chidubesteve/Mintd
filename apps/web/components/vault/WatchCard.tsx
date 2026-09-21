@@ -11,6 +11,15 @@ import {
 } from '@/components/ui/tooltip';
 import type { WatchListItem } from '@/services/Watch.service';
 import logoWhite from '@/public/logo-white.webp';
+import { CopyButton } from '@/components/ui/copy-button';
+
+// "MINTD-<timestamp>-<random>" -> "MINTD-<random>" — the timestamp segment
+// is the least useful part to show in a compact space, the random suffix is
+// what actually distinguishes one watch's asset ID from another's.
+function truncateAssetId(assetId: string) {
+    const parts = assetId.split('-');
+    return parts.length >= 3 ? `${parts[0]}-${parts[2]}` : assetId;
+}
 
 const STATUS_LABEL: Record<string, string> = {
     REGISTERED: 'Registered',
@@ -96,8 +105,8 @@ const WatchCard = ({ watch }: { watch: WatchListItem }) => {
                 {isPendingReview && !isVerified && (
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <div className='absolute top-3 right-3 bg-background/80 backdrop-blur-md rounded-full p-1.5 shadow-md border border-border/50'>
-                                <Clock className='w-3.5 h-3.5 text-muted-foreground' />
+                            <div className='absolute top-3 right-3 bg-background/80 backdrop-blur-md rounded-full p-2 shadow-md border border-border/50'>
+                                <Clock className='w-4 h-4 text-muted-foreground' strokeWidth={2.25} />
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -118,6 +127,10 @@ const WatchCard = ({ watch }: { watch: WatchListItem }) => {
                 <p className='text-xs text-muted-foreground mt-0.5 font-mono truncate'>
                     {watch.reference ? `Ref. ${watch.reference}` : watch.assetId}
                 </p>
+                <div className='flex items-center gap-1 mt-1 text-[11px] text-muted-foreground/80 font-mono'>
+                    <span className='truncate'>{truncateAssetId(watch.assetId)}</span>
+                    <CopyButton value={watch.assetId} label='Copy asset ID' className='p-0.5' />
+                </div>
 
                 <div className='flex items-center justify-between mt-3 pt-3 border-t border-border/70'>
                     <span className='text-[11px] text-muted-foreground'>
@@ -128,7 +141,12 @@ const WatchCard = ({ watch }: { watch: WatchListItem }) => {
                         })}
                     </span>
                     {isVerified && (
-                        <CheckCircle2 className='w-3.5 h-3.5 text-accent' />
+                        <CheckCircle2
+                            className='w-4 h-4 text-accent'
+                            strokeWidth={2.25}
+                            fill='currentColor'
+                            fillOpacity={0.15}
+                        />
                     )}
                 </div>
             </div>

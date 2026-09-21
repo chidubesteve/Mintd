@@ -31,19 +31,46 @@ export const watchImageEntrySchema = z.object({
 
 export type WatchImageEntry = z.infer<typeof watchImageEntrySchema>;
 
+// Letters (incl. accented), numbers, spaces, and the punctuation that
+// actually shows up in real brand/model names (Jaeger-LeCoultre, Nautilus
+// 5711/1A, Royal Oak "Jumbo" (39mm), Girard-Perregaux & Cie). Deliberately
+// excludes quotes, colons, braces, and backslashes — the characters that
+// show up when someone pastes structured text (JSON, code) into a plain
+// name field rather than typing a watch name.
+const NAME_PATTERN = /^[\p{L}\p{N} .,&()/-]+$/u;
+
 export const watchRegistrationSchema = z.object({
     brand: z
         .string()
         .trim()
         .min(1, { message: 'Brand is required' })
-        .max(50, { message: 'Brand must be less than 50 characters' }),
-    watchModel: z.string().min(1, 'Model is required').trim(),
+        .max(50, { message: 'Brand must be less than 50 characters' })
+        .regex(NAME_PATTERN, { message: 'Brand contains invalid characters' }),
+    watchModel: z
+        .string()
+        .trim()
+        .min(1, 'Model is required')
+        .max(80, 'Model must be less than 80 characters')
+        .regex(NAME_PATTERN, 'Model contains invalid characters'),
     serialNumber: z
         .string()
         .min(1, 'Serial number is required')
         .trim()
         .toUpperCase(),
-    referenceNo: z.string().trim().toUpperCase(),
+    // There's no single standardised reference-number format across
+    // brands — Rolex ("126610LN"), Patek ("5711/1A-010"), Omega
+    // ("310.30.42.50.01.001") and AP ("26470ST.OO.A101CR.01") all use
+    // different shapes. Rather than fake one canonical pattern, this just
+    // constrains the general shape (uppercase alphanumerics plus the
+    // separators real references use) and a sane length.
+    referenceNo: z
+        .string()
+        .trim()
+        .toUpperCase()
+        .max(30, 'Reference number must be less than 30 characters')
+        .regex(/^[A-Z0-9\-./ ]*$/, {
+            message: 'Reference number contains invalid characters',
+        }),
     description: z
         .string()
         .max(500, 'Description must be less than 500 characters')

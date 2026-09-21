@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import { runMulter, watchImageUpload } from '../middlewares/upload.middleware';
 import { WatchCatalogue } from '../models/WatchCatalogue.model';
 import { deleteWatchImage, UploadedWatchImage, uploadWatchImage } from '../utils/ImageKit.utils';
+import { sendNewPendingReviewEmail } from '../utils/Email.utils';
 
 type ViewType = 'front' | 'back' | 'left' | 'right';
 
@@ -241,6 +242,21 @@ export async function uploadWatchHandler(
         // update watch status to OWNERSHIP_RECORDED after creating the ownership history
         watch.status = 'OWNERSHIP_RECORDED';
         await watch.save();
+
+        // best-effort: let the admin know there's something to review. Never
+        // let an email failure fail a registration that otherwise succeeded.
+        if (catalogueStatus === 'PENDING_REVIEW') {
+            sendNewPendingReviewEmail({
+                ownerEmail: req.user!.email,
+                brand: watch.brand,
+                model: watch.model,
+                reference: watch.reference || undefined,
+                assetId: watch.assetId,
+                reason: adminNote || 'Not found in catalogue.',
+            }).catch((err) =>
+                console.error('[Email] pending-review notification failed:', err),
+            );
+        }
 
         // respond with the created watch data - the client needs the watch ID and asset ID at minimum, and we can also include the catalogue match status so they can display that in the UI and potentially show an admin note if it's pending review. We should also include the image URLs so they can show a preview of the registered watch immediately after upload, without needing to call the watch details endpoint separately.
         res.status(201).json({
