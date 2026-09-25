@@ -68,7 +68,27 @@ function buildProcessedImageUrl(
     // `l-<url>` directly, which isn't valid ImageKit syntax at all — there
     // was no `l-image`/`i-`/`l-end`, so every processed-image request
     // failed with "invalid transformation".
-    const transforms = `e-bgremove,l-image,i-${encodeURIComponent(overlayPath)},lx-30,l-end,f-webp,q-90,w-1200`;
+    //
+    // Confirmed working, but with no size on the layer the overlay rendered
+    // at the source PNG's native resolution — that's what made it cover
+    // most of the watch face. lw- constrains it to a small badge (80px
+    // wide, proportional height), ly- moves it down from the very top edge
+    // so it doesn't get cropped, lo- gives it the semi-transparent look the
+    // original design called for instead of a solid opaque logo.
+    //
+    // Chained transformation *steps* are colon-separated in ImageKit —
+    // comma only joins params *within* one step. Flattening bg-removal,
+    // the whole l-image...l-end layer block, and the final resize/format
+    // into a single comma list (as this did until now) isn't valid
+    // structure for a nested block sitting between other top-level params,
+    // and produced "invalid url". Each stage below is its own colon-joined
+    // step, applied in order: remove the background, then composite the
+    // layer on top of that result, then resize/reformat the final output.
+    const transforms = [
+        'e-bgremove',
+        `l-image,i-${encodeURIComponent(overlayPath)},lw-80,lx-30,ly-30,lo-85,l-end`,
+        'f-webp,q-90,w-1200',
+    ].join(':');
     return `${urlEndpoint}${filePath}?tr=${transforms}`;
 }
 

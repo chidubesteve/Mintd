@@ -12,6 +12,7 @@ import {
 import type { WatchListItem } from '@/services/Watch.service';
 import logoWhite from '@/public/logo-white.webp';
 import { CopyButton } from '@/components/ui/copy-button';
+import { ImageWithSkeleton } from '@/components/ui/image-with-skeleton';
 
 // "MINTD-<timestamp>-<random>" -> "MINTD-<random>" — the timestamp segment
 // is the least useful part to show in a compact space, the random suffix is
@@ -50,20 +51,14 @@ const WatchCard = ({ watch }: { watch: WatchListItem }) => {
         >
             {/* Image */}
             <div className='relative aspect-4/3 bg-muted overflow-hidden'>
-                {imageUrl ? (
-                    <Image
-                        src={imageUrl}
-                        alt={`${watch.brand} ${watch.model}`}
-                        fill
-                        sizes='(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw'
-                        className='object-cover transition-transform duration-500 group-hover:scale-105'
-                        unoptimized
-                    />
-                ) : (
-                    <div className='w-full h-full flex items-center justify-center text-muted-foreground/40 text-xs'>
-                        Image processing…
-                    </div>
-                )}
+                <ImageWithSkeleton
+                    src={imageUrl}
+                    alt={`${watch.brand} ${watch.model}`}
+                    fill
+                    sizes='(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw'
+                    className='object-cover transition-transform duration-500 group-hover:scale-105'
+                    unoptimized
+                />
 
                 <div className='absolute inset-0 bg-linear-to-t from-card/70 via-transparent to-transparent' />
 

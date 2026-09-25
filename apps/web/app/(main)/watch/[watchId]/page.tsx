@@ -11,13 +11,13 @@
  */
 
 import { use } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Clock, Sparkles, ShieldCheck, Info } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CopyButton } from '@/components/ui/copy-button';
+import { ImageWithSkeleton } from '@/components/ui/image-with-skeleton';
 import {
     Tooltip,
     TooltipContent,
@@ -117,19 +117,13 @@ const WatchDetailPage = ({
             <div className='grid md:grid-cols-2 gap-10 lg:gap-14'>
                 {/* Image */}
                 <div className='relative aspect-square rounded-2xl overflow-hidden bg-muted border border-border shadow-card'>
-                    {primaryImage ? (
-                        <Image
-                            src={primaryImage.url}
-                            alt={`${watch.brand} ${watch.model}`}
-                            fill
-                            className='object-cover'
-                            unoptimized
-                        />
-                    ) : (
-                        <div className='w-full h-full flex items-center justify-center text-muted-foreground/40 text-sm'>
-                            Image processing…
-                        </div>
-                    )}
+                    <ImageWithSkeleton
+                        src={primaryImage?.url}
+                        alt={`${watch.brand} ${watch.model}`}
+                        fill
+                        className='object-cover'
+                        unoptimized
+                    />
                 </div>
 
                 {/* Details */}
