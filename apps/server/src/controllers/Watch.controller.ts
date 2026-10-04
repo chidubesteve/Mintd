@@ -5,7 +5,7 @@ import { OwnershipHistory } from '../models/OwnershipHistory.model';
 import mongoose from 'mongoose';
 import { runMulter, watchImageUpload } from '../middlewares/upload.middleware';
 import { WatchCatalogue } from '../models/WatchCatalogue.model';
-import { deleteWatchImage, UploadedWatchImage, uploadWatchImage } from '../utils/ImageKit.utils';
+import { buildProcessedImageUrl, deleteWatchImage, UploadedWatchImage, uploadWatchImage } from '../utils/ImageKit.utils';
 import { sendNewPendingReviewEmail } from '../utils/Email.utils';
 
 type ViewType = 'front' | 'back' | 'left' | 'right';
@@ -300,7 +300,14 @@ export async function getUserWatchesHandler(
         const shaped = watches.map((w) => {
             const primaryImage =
                 w.images.find((img) => img.isPrimary) || w.images[0]; // fallback to first image if no primary set
-            return { ...w, images: primaryImage };
+            return {
+                ...w,
+                images: primaryImage ? {
+                    url: buildProcessedImageUrl(primaryImage.originalUrl, w.catalog?.status ?? 'PENDING_REVIEW'),
+                    viewType: primaryImage.viewType,
+                    isPrimary: primaryImage.isPrimary,
+                } : undefined,
+            };
         });
         res.status(200).json({ watches: shaped });
     } catch (error) {
@@ -344,7 +351,7 @@ export async function getWatchDetailsHandler(
 
         // sanitise image data before sending to client - we only want to send the processed url and view type, not the original url or fileId or hash - those are for internal purposes
         const safeImages = (watch.images || []).map((img: any) => ({
-            url: img.url,
+            url: buildProcessedImageUrl(img.originalUrl, watch.catalog?.status ?? 'PENDING_REVIEW'),
             viewType: img.viewType,
             isPrimary: img.isPrimary,
         }));
