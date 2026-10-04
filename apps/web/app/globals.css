@@ -184,8 +184,19 @@
   background-image: radial-gradient(ellipse at 25% 15%, #43766680, transparent 60%),
     linear-gradient(145deg, #153e32, #09291f 45%, #244e3e 70%, #103126);
 }
+/* Keep dark image panels distinct from the forest-green card body. */
 .dark .watch-studio {
-  background-color: #e5e9e5;
-  background-image: radial-gradient(ellipse at 25% 15%, #ffffffcc, transparent 60%),
-    linear-gradient(145deg, #eaf0eb, #c4cfc7 45%, #f4f5f1 70%, #d5ded7);
+  background-color: var(--muted);
+  background-image: none;
+}
+
+/* A narrow feather softens source-photo boundaries, rather than hiding details
+   under a heavy vignette. This is presentation only, never a provenance edit. */
+.watch-photo-soft {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent),
+    linear-gradient(to bottom, transparent, #000 3%, #000 97%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent),
+    linear-gradient(to bottom, transparent, #000 3%, #000 97%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
 }

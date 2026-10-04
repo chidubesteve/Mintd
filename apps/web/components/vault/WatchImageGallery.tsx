@@ -14,9 +14,12 @@ export function WatchImageGallery({ images, name, catalogueStatus }: {
     return (
         <div>
             <div className='watch-studio relative aspect-square rounded-2xl overflow-hidden border border-border shadow-card'>
-                <ImageWithSkeleton key={selected?.url} src={selected?.url}
-                    alt={`${name}, ${selected?.viewType ?? 'front'} view`} fill
-                    sizes='(max-width: 768px) 100vw, 50vw' className='object-contain p-8 md:p-12' unoptimized />
+                {/* Feather the display edges only; stored originals and derivative URLs stay intact. */}
+                <div className='absolute inset-8 md:inset-12'>
+                    <ImageWithSkeleton key={selected?.url} src={selected?.url}
+                        alt={`${name}, ${selected?.viewType ?? 'front'} view`} fill
+                        sizes='(max-width: 768px) 100vw, 50vw' className='watch-photo-soft object-contain' unoptimized />
+                </div>
                 <WatchArtworkBadge status={catalogueStatus} />
             </div>
             {images.length > 1 && (
@@ -25,12 +28,12 @@ export function WatchImageGallery({ images, name, catalogueStatus }: {
                         <button key={`${image.url}-${index}`} type='button'
                             onClick={() => setSelectedUrl(image.url)}
                             aria-label={`Show ${image.viewType} view`} aria-pressed={selected === image}
-                            className={`rounded-lg border-2 overflow-hidden focus-visible:outline-2 focus-visible:outline-accent ${selected === image ? 'border-accent' : 'border-transparent'}`}>
-                            <div className='watch-studio relative aspect-square'>
+                            className={`watch-studio text-foreground rounded-lg border-2 overflow-hidden focus-visible:outline-2 focus-visible:outline-accent ${selected === image ? 'border-accent' : 'border-transparent'}`}>
+                            <div className='relative aspect-square'>
                                 <ImageWithSkeleton src={image.url} alt={`${name}, ${image.viewType} view`}
-                                    fill sizes='120px' className='object-contain p-2' unoptimized />
+                                    fill sizes='120px' className='object-contain p-3' unoptimized />
                             </div>
-                            <span className='block py-1 text-xs capitalize'>{image.viewType}</span>
+                            <span className='block pb-2 pt-1 text-xs font-medium capitalize text-white dark:text-black'>{image.viewType}</span>
                         </button>
                     ))}
                 </div>

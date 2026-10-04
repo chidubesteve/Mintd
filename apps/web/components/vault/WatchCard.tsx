@@ -34,13 +34,14 @@ function statusVariant(status: string): 'accent' | 'outline' | 'muted' | 'warnin
 
 const WatchCard = ({ watch }: { watch: WatchListItem }) => {
     const isVerified = watch.catalog?.status === 'MATCHED';
+    const isPendingReview = watch.catalog?.status === 'PENDING_REVIEW';
     const isMinted = watch.status === 'CERTIFIED';
     const imageUrl = watch.images?.url;
 
     return (
         <Link
             href={`/watch/${watch._id}`}
-            className='group block rounded-xl border border-border bg-card overflow-hidden shadow-subtle transition-all duration-300 hover:-translate-y-1 hover:shadow-luxury hover:border-accent/30'
+            className='group block rounded-xl border border-border bg-card overflow-hidden shadow-subtle transition-all duration-300 hover:-translate-y-1'
         >
             {/* Image */}
             <div className='watch-studio relative aspect-4/3 overflow-hidden'>
@@ -51,13 +52,16 @@ const WatchCard = ({ watch }: { watch: WatchListItem }) => {
                     sizes='(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw'
                     className='object-contain p-6'
                     unoptimized
+                    loading="eager"
                 />
 
+                {/* Blend the image panel into the card without changing photo sizing. */}
+                <div aria-hidden='true' className='pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-card to-transparent' />
 
                 {/* Status pill */}
                 <Badge
                     variant={statusVariant(watch.status)}
-                    className='absolute top-3 left-3 shadow-md'
+                    className='absolute top-3 left-3 z-10 bg-card text-card-foreground border-border shadow-sm'
                 >
                     {isMinted && <Sparkles className='w-3 h-3' />}
                     {STATUS_LABEL[watch.status] ?? watch.status}
