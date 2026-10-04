@@ -200,3 +200,14 @@
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
 }
+
+/* Fade the scene once onto the shared card background. Keeping the pill and
+   artwork outside this mask preserves their contrast and avoids stacked fades. */
+.watch-card-scene {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%,
+    rgb(0 0 0 / 0.97) 65%, rgb(0 0 0 / 0.84) 75%,
+    rgb(0 0 0 / 0.5) 85%, rgb(0 0 0 / 0.15) 94%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 55%,
+    rgb(0 0 0 / 0.97) 65%, rgb(0 0 0 / 0.84) 75%,
+    rgb(0 0 0 / 0.5) 85%, rgb(0 0 0 / 0.15) 94%, transparent 100%);
+}

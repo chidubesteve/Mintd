@@ -34,9 +34,12 @@ function statusVariant(status: string): 'accent' | 'outline' | 'muted' | 'warnin
 
 const WatchCard = ({ watch }: { watch: WatchListItem }) => {
     const isVerified = watch.catalog?.status === 'MATCHED';
-    const isPendingReview = watch.catalog?.status === 'PENDING_REVIEW';
     const isMinted = watch.status === 'CERTIFIED';
     const imageUrl = watch.images?.url;
+    // Catalogue review is the actionable state; don't hide it behind registration.
+    const reviewLabel = watch.catalog?.status === 'REJECTED' ? 'Rejected'
+        : watch.catalog?.status === 'PENDING_REVIEW' ? 'Pending review' : undefined;
+    const pillLabel = reviewLabel ?? STATUS_LABEL[watch.status] ?? watch.status;
 
     return (
         <Link
@@ -44,43 +47,53 @@ const WatchCard = ({ watch }: { watch: WatchListItem }) => {
             className='group block rounded-xl border border-border bg-card overflow-hidden shadow-subtle transition-all duration-300 hover:-translate-y-1'
         >
             {/* Image */}
-            <div className='watch-studio relative aspect-4/3 overflow-hidden'>
-                <ImageWithSkeleton
-                    src={imageUrl}
-                    alt={`${watch.brand} ${watch.model}`}
-                    fill
-                    sizes='(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw'
-                    className='object-contain p-6'
-                    unoptimized
-                    loading="eager"
-                />
+            <div className='relative aspect-4/3 bg-card'>
+                <div className='watch-studio watch-card-scene absolute inset-0'>
+                    <ImageWithSkeleton
+                        src={imageUrl}
+                        alt={`${watch.brand} ${watch.model}`}
+                        fill
+                        sizes='(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw'
+                        className='object-contain p-6'
+                        unoptimized
+                    />
+                </div>
 
-                {/* Blend the image panel into the card without changing photo sizing. */}
-                <div aria-hidden='true' className='pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-card to-transparent' />
-
-                {/* Status pill */}
+                {/* Keep badges outside the image fade so they remain legible. */}
                 <Badge
-                    variant={statusVariant(watch.status)}
+                    variant={
+                        reviewLabel ? 'warning' : statusVariant(watch.status)
+                    }
                     className='absolute top-3 left-3 z-10 bg-card text-card-foreground border-border shadow-sm'
                 >
-                    {isMinted && <Sparkles className='w-3 h-3' />}
-                    {STATUS_LABEL[watch.status] ?? watch.status}
+                    {isMinted && !reviewLabel && (
+                        <Sparkles className='w-3 h-3' />
+                    )}
+                    {pillLabel}
                 </Badge>
 
                 <WatchArtworkBadge status={watch.catalog?.status} />
             </div>
 
             {/* Details */}
-            <div className='p-4'>
+            <div className='relative -mt-px bg-card p-4'>
                 <h3 className='text-sm font-bold text-foreground truncate'>
                     {watch.brand} {watch.model}
                 </h3>
                 <p className='text-xs text-muted-foreground mt-0.5 font-mono truncate'>
-                    {watch.reference ? `Ref. ${watch.reference}` : watch.assetId}
+                    {watch.reference
+                        ? `Ref. ${watch.reference}`
+                        : watch.assetId}
                 </p>
                 <div className='flex items-center gap-1 mt-1 text-[11px] text-muted-foreground/80 font-mono'>
-                    <span className='truncate'>{truncateAssetId(watch.assetId)}</span>
-                    <CopyButton value={watch.assetId} label='Copy asset ID' className='p-0.5' />
+                    <span className='truncate'>
+                        {truncateAssetId(watch.assetId)}
+                    </span>
+                    <CopyButton
+                        value={watch.assetId}
+                        label='Copy asset ID'
+                        className='p-0.5'
+                    />
                 </div>
 
                 <div className='flex items-center justify-between mt-3 pt-3 border-t border-border/70'>
