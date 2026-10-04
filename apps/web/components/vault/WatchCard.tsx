@@ -1,16 +1,10 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { CheckCircle2, Clock, Sparkles } from 'lucide-react';
+import { CheckCircle2, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import type { WatchListItem } from '@/services/Watch.service';
-import logoWhite from '@/public/logo-white.webp';
+import { WatchArtworkBadge } from './WatchArtworkBadge';
 import { CopyButton } from '@/components/ui/copy-button';
 import { ImageWithSkeleton } from '@/components/ui/image-with-skeleton';
 
@@ -40,7 +34,6 @@ function statusVariant(status: string): 'accent' | 'outline' | 'muted' | 'warnin
 
 const WatchCard = ({ watch }: { watch: WatchListItem }) => {
     const isVerified = watch.catalog?.status === 'MATCHED';
-    const isPendingReview = watch.catalog?.status === 'PENDING_REVIEW';
     const isMinted = watch.status === 'CERTIFIED';
     const imageUrl = watch.images?.url;
 
@@ -50,17 +43,16 @@ const WatchCard = ({ watch }: { watch: WatchListItem }) => {
             className='group block rounded-xl border border-border bg-card overflow-hidden shadow-subtle transition-all duration-300 hover:-translate-y-1 hover:shadow-luxury hover:border-accent/30'
         >
             {/* Image */}
-            <div className='relative aspect-4/3 bg-muted overflow-hidden'>
+            <div className='watch-studio relative aspect-4/3 overflow-hidden'>
                 <ImageWithSkeleton
                     src={imageUrl}
                     alt={`${watch.brand} ${watch.model}`}
                     fill
                     sizes='(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw'
-                    className='object-cover transition-transform duration-500 group-hover:scale-105'
+                    className='object-contain p-6'
                     unoptimized
                 />
 
-                <div className='absolute inset-0 bg-linear-to-t from-card/70 via-transparent to-transparent' />
 
                 {/* Status pill */}
                 <Badge
@@ -71,47 +63,7 @@ const WatchCard = ({ watch }: { watch: WatchListItem }) => {
                     {STATUS_LABEL[watch.status] ?? watch.status}
                 </Badge>
 
-                {/* Verified mark */}
-                {isVerified && (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            {/* Fixed dark chip regardless of theme, so the silver/white Mintd
-                                mark stays legible whether the page is in light or dark mode —
-                                this is the "consistent branded look" cue across every card. */}
-                            <div className='absolute top-3 right-3 bg-mintd-forest/85 backdrop-blur-md rounded-full p-1.5 shadow-md'>
-                                <Image
-                                    src={logoWhite}
-                                    alt='Verified by Mintd'
-                                    width={14}
-                                    height={14}
-                                    className='opacity-95'
-                                />
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className='max-w-56'>
-                                This watch has been verified as an existing
-                                type of wristwatch in our catalogue.
-                            </p>
-                        </TooltipContent>
-                    </Tooltip>
-                )}
-
-                {isPendingReview && !isVerified && (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className='absolute top-3 right-3 bg-background/80 backdrop-blur-md rounded-full p-2 shadow-md border border-border/50'>
-                                <Clock className='w-4 h-4 text-muted-foreground' strokeWidth={2.25} />
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className='max-w-56'>
-                                Pending admin review before it can be
-                                verified and minted.
-                            </p>
-                        </TooltipContent>
-                    </Tooltip>
-                )}
+                <WatchArtworkBadge status={watch.catalog?.status} />
             </div>
 
             {/* Details */}

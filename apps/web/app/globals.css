@@ -178,3 +178,14 @@
     animation: float 4s ease-in-out infinite;
   }
 }
+/* One presentation across uploads. Theme changes don't generate another AI derivative. */
+.watch-studio {
+  background-color: #103c30;
+  background-image: radial-gradient(ellipse at 25% 15%, #43766680, transparent 60%),
+    linear-gradient(145deg, #153e32, #09291f 45%, #244e3e 70%, #103126);
+}
+.dark .watch-studio {
+  background-color: #e5e9e5;
+  background-image: radial-gradient(ellipse at 25% 15%, #ffffffcc, transparent 60%),
+    linear-gradient(145deg, #eaf0eb, #c4cfc7 45%, #f4f5f1 70%, #d5ded7);
+}
