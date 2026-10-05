@@ -178,3 +178,36 @@
     animation: float 4s ease-in-out infinite;
   }
 }
+/* One presentation across uploads. Theme changes don't generate another AI derivative. */
+.watch-studio {
+  background-color: #103c30;
+  background-image: radial-gradient(ellipse at 25% 15%, #43766680, transparent 60%),
+    linear-gradient(145deg, #153e32, #09291f 45%, #244e3e 70%, #103126);
+}
+/* Keep dark image panels distinct from the forest-green card body. */
+.dark .watch-studio {
+  background-color: var(--muted);
+  background-image: none;
+}
+
+/* A narrow feather softens source-photo boundaries, rather than hiding details
+   under a heavy vignette. This is presentation only, never a provenance edit. */
+.watch-photo-soft {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent),
+    linear-gradient(to bottom, transparent, #000 3%, #000 97%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 3%, #000 97%, transparent),
+    linear-gradient(to bottom, transparent, #000 3%, #000 97%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+/* Fade the scene once onto the shared card background. Keeping the pill and
+   artwork outside this mask preserves their contrast and avoids stacked fades. */
+.watch-card-scene {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%,
+    rgb(0 0 0 / 0.97) 65%, rgb(0 0 0 / 0.84) 75%,
+    rgb(0 0 0 / 0.5) 85%, rgb(0 0 0 / 0.15) 94%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 55%,
+    rgb(0 0 0 / 0.97) 65%, rgb(0 0 0 / 0.84) 75%,
+    rgb(0 0 0 / 0.5) 85%, rgb(0 0 0 / 0.15) 94%, transparent 100%);
+}

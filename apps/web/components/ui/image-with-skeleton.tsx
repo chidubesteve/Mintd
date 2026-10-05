@@ -16,15 +16,21 @@ export function ImageWithSkeleton({
     src,
     className,
     onLoad,
+    onError,
     ...props
 }: Omit<ImageProps, 'src'> & { src?: string | null }) {
-    const [loaded, setLoaded] = useState(false);
+    // Track the source as well: switching gallery views must reset loading/error UI.
+    const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+    const [failedSrc, setFailedSrc] = useState<string | null>(null);
+    const loaded = !!src && loadedSrc === src;
+    const failed = !!src && failedSrc === src;
 
     return (
         <>
-            {(!src || !loaded) && (
+            {(!src || (!loaded && !failed)) && (
                 <div className='absolute inset-0 bg-muted animate-pulse' />
             )}
+            {failed && <div role='status' className='absolute inset-0 flex items-center justify-center text-sm text-muted-foreground bg-muted'>Image unavailable</div>}
             {src && (
                 // eslint-disable-next-line jsx-a11y/alt-text -- alt comes through ...props; ImageProps makes it a required, type-checked prop on every call site, the linter just can't see through the spread.
                 <Image
@@ -35,8 +41,13 @@ export function ImageWithSkeleton({
                         className,
                     )}
                     onLoad={(e) => {
-                        setLoaded(true);
+                        setLoadedSrc(src);
+                        setFailedSrc(null);
                         onLoad?.(e);
+                    }}
+                    onError={(e) => {
+                        setFailedSrc(src);
+                        onError?.(e);
                     }}
                     {...props}
                 />

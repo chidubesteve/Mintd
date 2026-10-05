@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import { approveWatch, rejectWatch } from '@/services/Admin.service';
 import { extractErrorMessage } from './useAuthMutations';
+import { watchKeys } from '@/hooks/queries/useVault';
 import { adminKeys } from '@/hooks/queries/useAdmin';
 
 export function useApproveWatch() {
@@ -24,6 +25,7 @@ export function useApproveWatch() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: adminKeys.pendingReview() });
             queryClient.invalidateQueries({ queryKey: adminKeys.stats() });
+            queryClient.invalidateQueries({ queryKey: watchKeys.all });
             queryClient.invalidateQueries({ queryKey: adminKeys.auditLog() });
             toast.success('Watch approved.');
         },
@@ -40,6 +42,7 @@ export function useRejectWatch() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: adminKeys.pendingReview() });
             queryClient.invalidateQueries({ queryKey: adminKeys.stats() });
+            queryClient.invalidateQueries({ queryKey: watchKeys.all });
             queryClient.invalidateQueries({ queryKey: adminKeys.auditLog() });
             toast.success('Watch rejected.');
         },

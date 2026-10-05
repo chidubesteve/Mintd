@@ -1,6 +1,5 @@
 import ImageKit from '@imagekit/nodejs';
 import crypto from 'crypto';
-import fs from 'fs';
 
 const imageKit = new ImageKit({
     privateKey: process.env.IMAGEKIT_PRIVATE_KEY || '',
@@ -15,82 +14,8 @@ export interface UploadedWatchImage {
     viewType: 'front' | 'back' | 'left' | 'right';
 }
 
-/**
- * Builds the processed image URL using ImageKit URL transformations.
- *  ImageKit caches the result at the CDN edge after the first request
- * - We can change the transformation later without re-uploading anything
- * - No additional compute cost at upload time
- *
- *  * Transformation chain:
- *   e-bgremove     → AI background removal
- *   l-image,...    → layer our Mintd watermark/luxury background overlay. this would be the mintd logo
- * I am thinking, is a change background step needed to include like a luxurious background after bg removal? or should we just do bg removal and then overlay the watch on a transparent background? I guess it depends on the look we want for the NFTs. If we want a consistent look with a branded background, then we should include a background change step to add that in. If we want a more raw look that just focuses on the watch itself, then we can skip the background change and just have the watch on a transparent background with the overlay. We can experiment with both looks and see which one resonates better with our audience and fits our brand identity. For now, I'll include the background change step in the transformation chain as a placeholder, and we can adjust it later based on our design decisions.
- *   f-webp         → convert to WebP (typically 30-50% smaller than JPEG)
- *   q-90           → quality 90 (good balance of size vs. clarity for watch detail)
- *   w-1200         → standardise width to 1200px (enough for NFT display)
- *
- * Overlay choice depends on where the watch is in its verification journey.
- * Only MATCHED and PENDING_REVIEW are wired in below, because those are the
- * only two states known at registration time (see Watch.controller.ts,
- * where catalogueStatus is resolved before the upload loop runs). CERTIFIED
- * only exists in the map for when the KYC/KYA flow is actually built — it's
- * not reachable from any code path yet, since nothing sets a watch to
- * CERTIFIED today. When that flow lands, it should NOT reuse this
- * upload-time approach: this bakes the overlay into a URL stored once on
- * the Watch document, so a watch that goes from PENDING_REVIEW to CERTIFIED
- * later would keep showing its old badge forever unless something
- * recomputes and overwrites the stored url. The correct fix then is to stop
- * persisting a final url and instead build the transform URL on demand from
- * originalUrl + the watch's current status whenever it's served to the
- * client — that's what ImageKit's on-the-fly transforms are for.
- */
-// Paths relative to the media library root (both overlays live at the root,
-// same account as the watch photos) — NOT full URLs. ImageKit's overlay
-// layer resolves `i-<path>` against your own library; a fully-qualified
-// external URL needs a different (base64-url) form we don't need here.
-const OVERLAY_LOGOS: Record<'MATCHED' | 'PENDING_REVIEW', string> = {
-    MATCHED: 'catalogue_matched_mintd.png',
-    PENDING_REVIEW: 'Pending_review_mintd.png',
-};
-
-function buildProcessedImageUrl(
-    originalUrl: string,
-    catalogueStatus: 'MATCHED' | 'PENDING_REVIEW',
-): string {
-    const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || '';
-    const overlayPath = OVERLAY_LOGOS[catalogueStatus];
-
-    // extract the path of the original url
-    const filePath = originalUrl.replace(urlEndpoint, '');
-
-    // Layer transforms are their own block: `l-image` opens it, `i-<path>`
-    // names the overlay, `l-end` closes it. The previous version wrote
-    // `l-<url>` directly, which isn't valid ImageKit syntax at all — there
-    // was no `l-image`/`i-`/`l-end`, so every processed-image request
-    // failed with "invalid transformation".
-    //
-    // Confirmed working, but with no size on the layer the overlay rendered
-    // at the source PNG's native resolution — that's what made it cover
-    // most of the watch face. lw- constrains it to a small badge (80px
-    // wide, proportional height), ly- moves it down from the very top edge
-    // so it doesn't get cropped, lo- gives it the semi-transparent look the
-    // original design called for instead of a solid opaque logo.
-    //
-    // Chained transformation *steps* are colon-separated in ImageKit —
-    // comma only joins params *within* one step. Flattening bg-removal,
-    // the whole l-image...l-end layer block, and the final resize/format
-    // into a single comma list (as this did until now) isn't valid
-    // structure for a nested block sitting between other top-level params,
-    // and produced "invalid url". Each stage below is its own colon-joined
-    // step, applied in order: remove the background, then composite the
-    // layer on top of that result, then resize/reformat the final output.
-    const transforms = [
-        'e-bgremove',
-        `l-image,i-${encodeURIComponent(overlayPath)},lw-80,lx-30,ly-30,lo-85,l-end`,
-        'f-webp,q-90,w-1200',
-    ].join(':');
-    return `${urlEndpoint}${filePath}?tr=${transforms}`;
-}
+export { buildProcessedImageUrl } from './WatchImageUrl.utils';
+import { buildProcessedImageUrl } from './WatchImageUrl.utils';
 
 export async function uploadWatchImage(
     fileBuffer: Buffer,
