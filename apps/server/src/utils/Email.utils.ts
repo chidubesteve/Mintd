@@ -4,6 +4,7 @@ import { Resend } from 'resend';
 import { PasswordResetEmail } from './emails/PasswordReset';
 import { VerifyEmail } from './emails/VerifyEmail';
 import { ResendVerificationEmail } from './emails/resendVerification';
+import { NewPendingReviewWatch } from './emails/NewPendingReviewWatch';
 interface EmailParams {
     to: string;
     subject: string;
@@ -76,4 +77,28 @@ export async function sendResentVerificationEmail(
             react: ResendVerificationEmail({ userFName, otp }),
         });
     } catch (error) {}
+}
+
+// Notifies the admin when a watch registration needs manual review (custom
+// brand, or brand/model/reference not found in our catalogue). Failure here
+// should never block registration itself, so callers should treat this as
+// best-effort and not let it fail the request.
+export async function sendNewPendingReviewEmail(params: {
+    ownerEmail: string;
+    brand: string;
+    model: string;
+    reference?: string;
+    assetId: string;
+    reason: string;
+}): Promise<void> {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!adminEmail) {
+        console.error('[Email] ADMIN_EMAIL not set, skipping pending-review notification');
+        return;
+    }
+    await sendMail({
+        to: adminEmail,
+        subject: `New watch pending review: ${params.brand} ${params.model}`,
+        react: NewPendingReviewWatch(params),
+    });
 }

@@ -11,12 +11,18 @@
  */
 
 import { use } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Clock, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, Sparkles, ShieldCheck, Info } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CopyButton } from '@/components/ui/copy-button';
+import { WatchImageGallery } from '@/components/vault/WatchImageGallery';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useWatchDetails } from '@/hooks/queries/useVault';
 
 interface WatchImage {
@@ -94,8 +100,6 @@ const WatchDetailPage = ({
     }
 
     const { watch, ownershipHistory } = payload;
-    const primaryImage =
-        watch.images?.find((img) => img.isPrimary) ?? watch.images?.[0];
     const isVerified = watch.catalog?.status === 'MATCHED';
     const isMinted = watch.status === 'CERTIFIED';
 
@@ -110,21 +114,8 @@ const WatchDetailPage = ({
 
             <div className='grid md:grid-cols-2 gap-10 lg:gap-14'>
                 {/* Image */}
-                <div className='relative aspect-square rounded-2xl overflow-hidden bg-muted border border-border shadow-card'>
-                    {primaryImage ? (
-                        <Image
-                            src={primaryImage.url}
-                            alt={`${watch.brand} ${watch.model}`}
-                            fill
-                            className='object-cover'
-                            unoptimized
-                        />
-                    ) : (
-                        <div className='w-full h-full flex items-center justify-center text-muted-foreground/40 text-sm'>
-                            Image processing…
-                        </div>
-                    )}
-                </div>
+                <WatchImageGallery key={watch._id} images={watch.images ?? []}
+                    name={`${watch.brand} ${watch.model}`} catalogueStatus={watch.catalog?.status} />
 
                 {/* Details */}
                 <div>
@@ -135,21 +126,33 @@ const WatchDetailPage = ({
                         </Badge>
                         {isVerified ? (
                             <Badge variant='secondary'>
-                                <CheckCircle2 className='w-3 h-3' /> Verified watch
+                                <CheckCircle2 className='w-3 h-3' /> Catalogue matched
                             </Badge>
-                        ) : (
+                        ) : watch.catalog?.status === 'PENDING_REVIEW' ? (
                             <Badge variant='muted'>
                                 <Clock className='w-3 h-3' /> Pending review
                             </Badge>
-                        )}
+                        ) : null}
                     </div>
 
                     <h1 className='text-2xl md:text-3xl font-bold text-foreground'>
                         {watch.brand} {watch.model}
                     </h1>
-                    <p className='text-sm text-muted-foreground font-mono mt-1'>
+                    <p className='text-sm text-muted-foreground font-mono mt-1 inline-flex items-center gap-1.5'>
                         {watch.reference ? `Ref. ${watch.reference} · ` : ''}
                         {watch.assetId}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Info className='w-3.5 h-3.5 cursor-help' />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className='max-w-56'>
+                                    Your asset ID. Use this to identify this
+                                    watch on Mintd.
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <CopyButton value={watch.assetId} label='Copy asset ID' />
                     </p>
 
                     {watch.description && (

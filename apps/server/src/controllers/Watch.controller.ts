@@ -5,7 +5,8 @@ import { OwnershipHistory } from '../models/OwnershipHistory.model';
 import mongoose from 'mongoose';
 import { runMulter, watchImageUpload } from '../middlewares/upload.middleware';
 import { WatchCatalogue } from '../models/WatchCatalogue.model';
-import { deleteWatchImage, UploadedWatchImage, uploadWatchImage } from '../utils/ImageKit.utils';
+import { buildProcessedImageUrl, deleteWatchImage, UploadedWatchImage, uploadWatchImage } from '../utils/ImageKit.utils';
+import { sendNewPendingReviewEmail } from '../utils/Email.utils';
 
 type ViewType = 'front' | 'back' | 'left' | 'right';
 
@@ -242,6 +243,21 @@ export async function uploadWatchHandler(
         watch.status = 'OWNERSHIP_RECORDED';
         await watch.save();
 
+        // best-effort: let the admin know there's something to review. Never
+        // let an email failure fail a registration that otherwise succeeded.
+        if (catalogueStatus === 'PENDING_REVIEW') {
+            sendNewPendingReviewEmail({
+                ownerEmail: req.user!.email,
+                brand: watch.brand,
+                model: watch.model,
+                reference: watch.reference || undefined,
+                assetId: watch.assetId,
+                reason: adminNote || 'Not found in catalogue.',
+            }).catch((err) =>
+                console.error('[Email] pending-review notification failed:', err),
+            );
+        }
+
         // respond with the created watch data - the client needs the watch ID and asset ID at minimum, and we can also include the catalogue match status so they can display that in the UI and potentially show an admin note if it's pending review. We should also include the image URLs so they can show a preview of the registered watch immediately after upload, without needing to call the watch details endpoint separately.
         res.status(201).json({
             message: 'Watch registered successfully',
@@ -284,7 +300,14 @@ export async function getUserWatchesHandler(
         const shaped = watches.map((w) => {
             const primaryImage =
                 w.images.find((img) => img.isPrimary) || w.images[0]; // fallback to first image if no primary set
-            return { ...w, images: primaryImage };
+            return {
+                ...w,
+                images: primaryImage ? {
+                    url: buildProcessedImageUrl(primaryImage.originalUrl, w.catalog?.status ?? 'PENDING_REVIEW'),
+                    viewType: primaryImage.viewType,
+                    isPrimary: primaryImage.isPrimary,
+                } : undefined,
+            };
         });
         res.status(200).json({ watches: shaped });
     } catch (error) {
@@ -328,7 +351,7 @@ export async function getWatchDetailsHandler(
 
         // sanitise image data before sending to client - we only want to send the processed url and view type, not the original url or fileId or hash - those are for internal purposes
         const safeImages = (watch.images || []).map((img: any) => ({
-            url: img.url,
+            url: buildProcessedImageUrl(img.originalUrl, watch.catalog?.status ?? 'PENDING_REVIEW'),
             viewType: img.viewType,
             isPrimary: img.isPrimary,
         }));

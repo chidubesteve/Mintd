@@ -60,7 +60,7 @@ const CatalogueSelect = ({
 }: SharedProps & {
     mode?: 'strict' | 'freeText';
     searchPlaceholder?: string;
-    notFoundSlot?: React.ReactNode;
+    notFoundSlot?: (query: string) => React.ReactNode;
 }) => {
     if (mode === 'strict') {
         return (
@@ -104,7 +104,10 @@ function StrictSelect({
     isLoading,
     disabled,
     notFoundSlot,
-}: SharedProps & { searchPlaceholder?: string; notFoundSlot?: React.ReactNode }) {
+}: SharedProps & {
+    searchPlaceholder?: string;
+    notFoundSlot?: (query: string) => React.ReactNode;
+}) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const filtered = useFiltered(options, query);
@@ -148,7 +151,7 @@ function StrictSelect({
                     <div className='max-h-64 overflow-y-auto p-1'>
                         {filtered.length === 0 ? (
                             <div className='px-3 py-6'>
-                                {notFoundSlot ?? (
+                                {notFoundSlot?.(query) ?? (
                                     <p className='text-sm text-muted-foreground text-center'>
                                         No matches found.
                                     </p>

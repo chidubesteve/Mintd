@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
+import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './routes';
 import { connectDB } from './config/db';
@@ -12,6 +13,16 @@ const app = express();
 const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:3000')
     .split(',')
     .map((o) => o.trim());
+
+// A malformed FRONTEND_URL (e.g. copied from .env.example with the
+// "http://localhost:3000 || https://yourfrontendurl.com <when deployed>"
+// placeholder still in it) silently breaks CORS for every request — the
+// browser reports it to Axios as a bare Network Error with nothing else to
+// go on. Logging what we actually parsed makes that failure mode visible
+// on startup instead of only showing up as a mystery in the frontend.
+console.log('[CORS] Allowed origins:', allowedOrigins);
+
+app.use(morgan('dev'));
 
 app.use(
     cors({

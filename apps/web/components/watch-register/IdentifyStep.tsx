@@ -56,9 +56,9 @@ const IdentifyStep = ({
             (r) => r.reference.toLowerCase() === referenceNo.trim().toLowerCase(),
         );
 
-    function switchToManual() {
+    function switchToManual(prefillBrand = '') {
         setValue('isCustomBrand', true);
-        setValue('brand', '');
+        setValue('brand', prefillBrand);
         setValue('watchModel', '');
         setValue('referenceNo', '');
     }
@@ -165,21 +165,21 @@ const IdentifyStep = ({
                     setValue('watchModel', '');
                     setValue('referenceNo', '');
                 }}
-                notFoundSlot={
+                notFoundSlot={(query) => (
                     <div className='text-center space-y-2'>
                         <p className='text-sm text-muted-foreground'>
                             We couldn&apos;t find this brand in our database.
                         </p>
                         <button
                             type='button'
-                            onClick={switchToManual}
+                            onClick={() => switchToManual(query.trim())}
                             className='text-sm text-accent hover:underline font-medium inline-flex items-center gap-1'
                         >
                             <PenLine className='w-3.5 h-3.5' />
                             Add it manually
                         </button>
                     </div>
-                }
+                )}
             />
             {formState.errors.brand && (
                 <p className='text-xs text-destructive -mt-4'>

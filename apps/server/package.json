@@ -10,7 +10,8 @@
         "start": "node dist/index.js",
         "lint": "eslint 'src/**/*.ts'",
         "test": "echo \"Error: no test specified\" && exit 1",
-        "seed:catalogue": "tsx src/scripts/seedWatchCatalogue.ts"
+        "seed:catalogue": "tsx src/scripts/seedWatchCatalogue.ts",
+        "repair:images": "tsx src/scripts/repairWatchImageUrls.ts"
     },
     "author": "Chidube Anike",
     "license": "ISC",
@@ -26,6 +27,7 @@
         "helmet": "^8.1.0",
         "jsonwebtoken": "^9.0.3",
         "mongoose": "^9.0.1",
+        "morgan": "^1.12.1",
         "multer": "^2.0.2",
         "resend": "^6.9.4"
     },
@@ -35,6 +37,7 @@
         "@types/express": "^5.0.6",
         "@types/formdata": "^0.10.4",
         "@types/jsonwebtoken": "^9.0.10",
+        "@types/morgan": "^1.9.10",
         "@types/multer": "^2.0.0",
         "@types/node": "^25.0.2",
         "nodemon": "^3.1.14",
