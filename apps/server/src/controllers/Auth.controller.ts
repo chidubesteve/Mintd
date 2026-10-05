@@ -168,6 +168,7 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: '/',
         });
 
         // Return role-appropriate user shape.
@@ -256,13 +257,18 @@ export async function RefreshToken(req: Request, res: Response): Promise<void> {
  * @description Clears the refresh token cookie.
  */
 export async function logout(req: Request, res: Response): Promise<void> {
-    res.clearCookie('refreshToken', {
+    const clearOpts = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 0,
-        path: '/',
-    });
+        sameSite: 'lax' as const,
+    };
+    res.clearCookie('refreshToken', { ...clearOpts, path: '/' });
+    // login/verify-email used to set this cookie with no explicit path,
+    // which browsers default to the request's own directory (/auth) rather
+    // than '/'. Clearing with no path here resolves to that same /auth
+    // default for a POST to /auth/logout, so this also catches any
+    // leftover cookie from before path:'/' was added to those two places.
+    res.clearCookie('refreshToken', clearOpts);
     res.status(200).json({ message: 'Logout successful' });
 }
 
@@ -394,6 +400,7 @@ export async function verifyEmailHandler(req: Request, res: Response) {
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            path: '/',
         });
         // we need to send the access token back to the user
         res.status(200).json({
