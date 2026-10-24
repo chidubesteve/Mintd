@@ -81,32 +81,38 @@ export function useLogin() {
 }
 
 export function useLogout() {
-    const clearAuth = useAuthStore((s) => s.clearAuth);
     const router = useRouter();
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: logout,
-        onSuccess: () => {
-            clearAuth();
-            queryClient.clear();
-            router.push('/auth/login');
+        onMutate: async () => {
+            await queryClient.cancelQueries();
         },
-        onError: () => {
-            clearAuth();
-            router.push('/auth/login');
+        onSuccess: () => {
+            queryClient.clear();
+            router.replace('/auth/login');
+        },
+        onError: (error) => {
+            toast.error(extractErrorMessage(error as AxiosError));
         },
     });
 }
 
 export function useResetPassword() {
     const router = useRouter();
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: (variables: ResetPasswordVariables) =>
             resetPassword(variables.token, variables.password),
+        onMutate: async () => {
+            await queryClient.cancelQueries();
+        },
         onSuccess: ({ message }) => {
+            queryClient.clear();
             toast.success(message);
-            router.push('/auth/login');
+            router.replace('/auth/login');
         },
         onError: (error) =>
             toast.error(extractErrorMessage(error as AxiosError)),

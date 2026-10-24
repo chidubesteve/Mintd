@@ -1,56 +1,115 @@
-// sessionprovider to restore user session on page refresh and provide user data to the rest of the app
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { useAuthStore } from '@/store/Auth.store';
-import { refreshSession } from '@/services/Auth.service';
-
+import { apiClient, isProtectedPath, refreshSession } from '@/lib/axios';
 
 export default function SessionProvider({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const setAuth = useAuthStore((s) => s.setAuth);
-    const clearAuth = useAuthStore((s) => s.clearAuth);
-    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-    const [isLoading, setIsLoading] = useState(true);
+    const pathname = usePathname();
+    const router = useRouter();
+    const queryClient = useQueryClient();
 
-    // On app load, try to restore session if there's a refresh token cookie
+    const authenticated = useAuthStore((state) =>
+        Boolean(state.user && state.accessToken),
+    );
+
+    const [readyPath, setReadyPath] = useState<string | null>(null);
+    const [failure, setFailure] = useState(false);
+    const [attempt, setAttempt] = useState(0);
+
     useEffect(() => {
-        const initializeSession = async () => {
-            try {
-                // if we already have an access token, no need to refresh( no network roundtrip) (e.g. just logged in without refreshing the page)
-                if (isAuthenticated()) {
-                    setIsLoading(false);
-                    return;
-                };
+        let active = true;
 
-                // call the refresh endpoint to get a new access token using the refresh token cookie
-                const { user, accessToken } = await refreshSession();
-                setAuth(user, accessToken);
-              
+        const checkSession = async () => {
+            try {
+                if (useAuthStore.getState().accessToken) {
+                    // A locally present JWT might have been revoked elsewhere.
+                    await apiClient.get('/auth/session');
+                } else {
+                    await refreshSession();
+                }
+
+                if (active) setFailure(false);
             } catch (error) {
-                clearAuth();
-                console.error('Session initialization failed:', error);
+                if (axios.isCancel(error)) return;
+
+                if (
+                    axios.isAxiosError(error) &&
+                    error.response?.status === 401
+                ) {
+                    if (active) {
+                        queryClient.clear();
+                        setFailure(false);
+                    }
+                } else if (active) {
+                    setFailure(true);
+                }
             } finally {
-                // stop showing the loading screen
-                setIsLoading(false);
+                if (active) setReadyPath(pathname);
             }
         };
 
-        initializeSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        const onFocus = () => {
+            void checkSession();
+        };
 
-    if (isLoading) {
-        // You can replace this with a proper loading spinner or skeleton screen
+        void checkSession();
+        window.addEventListener('focus', onFocus);
+
+        return () => {
+            active = false;
+            window.removeEventListener('focus', onFocus);
+        };
+    }, [pathname, queryClient, attempt]);
+
+    const protectedRoute = isProtectedPath(pathname);
+
+    useEffect(() => {
+        if (
+            readyPath === pathname &&
+            !failure &&
+            protectedRoute &&
+            !authenticated
+        ) {
+            router.replace('/auth/login');
+        }
+    }, [authenticated, failure, pathname, protectedRoute, readyPath, router]);
+
+    if (readyPath !== pathname) {
         return (
-            <div className="flex items-center justify-center h-screen w-screen">
-                <p>Loading Application...</p>
+            <div className='flex min-h-screen items-center justify-center'>
+                <p>Checking your session...</p>
             </div>
         );
     }
+
+    if (failure) {
+        return (
+            <div className='flex min-h-screen flex-col items-center justify-center gap-4'>
+                <p>We could not check your session. Please try again.</p>
+                <button
+                    type='button'
+                    onClick={() => {
+                        setFailure(false);
+                        setReadyPath(null);
+                        setAttempt((value) => value + 1);
+                    }}
+                    className='text-accent underline'
+                >
+                    Try again
+                </button>
+            </div>
+        );
+    }
+
+    if (protectedRoute && !authenticated) return null;
 
     return <>{children}</>;
 }

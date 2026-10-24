@@ -13,7 +13,10 @@ import {
     hashCryptoToken,
     hashPassword,
     verifyRefreshToken,
+    verifyAccessToken,
+    getTokenExpirationDate,
 } from '../utils/Auth.utils';
+import type { TokenPayload } from '../utils/Auth.utils';
 import {
     sendPasswordResetEmail,
     sendResentVerificationEmail,
@@ -23,6 +26,14 @@ import { generateOTP, hashOTP, verifyOTP } from '../utils/otp.utils';
 import { Kyc } from '../models/Kyc.model';
 import { PasswordReset } from '../models/PasswordReset.model';
 import { isStrongPassword } from '../utils/passwordValidation';
+import { AuthSession } from '../models/AuthSession.model';
+import jwt from 'jsonwebtoken';
+import {
+    clearRefreshCookie,
+    createLoginSession,
+    publicUser,
+    setRefreshCookie,
+} from '../services/AuthSession.service';
 
 export const getAppUrl = () => {
     return process.env.NODE_ENV === 'production'
@@ -81,7 +92,6 @@ export async function signupHandler(req: Request, res: Response) {
             emailVerificationCode: otpHash,
             emailVerificationCodeExpiry: otpExpiry,
         });
-        console.log('collector', collector);
 
         // send verification email, fire-and-forget: a delivery failure must not
         // block account creation or redirect the user away from verify screen
@@ -158,48 +168,14 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        // generate tokens
-        const { accessToken, refreshToken } = generateTokenPair({
-            userId: user.id,
-            role: user.role as UserRole,
-            email: user.email,
-        });
+        const { accessToken, refreshToken } = await createLoginSession(user);
 
-        // token rotation - reissue refresh token
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: '/',
-        });
-
-        // Return role-appropriate user shape.
-        // Collectors get their kycStatus — they need it to know whether
-        // they can proceed to watch registration.
-        // Admins just get the basics.
-        const userData =
-            user.role === 'COLLECTOR'
-                ? {
-                      id: user.id,
-                      fName: user.fName,
-                      lName: user.lName,
-                      email: user.email,
-                      role: user.role,
-                      kycStatus: (user as unknown as CollectorType).kycStatus,
-                  }
-                : {
-                      id: user._id.toString(),
-                      fName: user.fName,
-                      lName: user.lName,
-                      email: user.email,
-                      role: user.role,
-                  };
+        setRefreshCookie(res, refreshToken);
 
         res.status(200).json({
             message: 'Login successful',
             accessToken,
-            user: userData,
+            user: publicUser(user),
         });
     } catch (error) {
         console.error('Login error:', error);
@@ -208,50 +184,75 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
 }
 
 export async function RefreshToken(req: Request, res: Response): Promise<void> {
+    res.set('Cache-Control', 'no-store');
+
     try {
-        const { refreshToken } = req.cookies;
+        const rawToken = req.cookies?.refreshToken;
 
-        if (!refreshToken) {
-            res.status(401).json({ message: 'Refresh token not found' });
-            return;
+        if (typeof rawToken !== 'string') {
+            throw new jwt.JsonWebTokenError('Missing refresh token');
         }
 
-        // verify refresh token
-        const payload = verifyRefreshToken(refreshToken);
+        const payload = verifyRefreshToken(rawToken);
 
-        // check if user exists
         const user = await User.findById(payload.userId);
-        if (!user) {
-            res.status(401).json({ message: 'User not found' });
-            return;
+
+        if (
+            !user ||
+            !user.emailVerified ||
+            (user.authVersion ?? 0) !== payload.authVersion
+        ) {
+            throw new jwt.JsonWebTokenError('Revoked login');
         }
 
-        // issue new tokens(pair)
-        const { accessToken, refreshToken: newRefreshToken } =
-            generateTokenPair({
-                userId: user.id,
-                role: user.role as UserRole,
-                email: user.email,
-            });
-
-        //overwrite the cookie with the new refresh token
-
-        res.cookie('refreshToken', newRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: '/',
+        const tokens = generateTokenPair({
+            userId: user.id,
+            role: user.role as UserRole,
+            email: user.email,
+            sessionId: payload.sessionId,
+            authVersion: payload.authVersion,
         });
+
+        // Only the currently stored refresh token may rotate this session.
+        // Updating an existing record cannot recreate a deleted session.
+        const session = await AuthSession.findOneAndUpdate(
+            {
+                _id: payload.sessionId,
+                user: user._id,
+                refreshHash: hashCryptoToken(rawToken),
+                expiresAt: { $gt: new Date() },
+            },
+            {
+                $set: {
+                    refreshHash: hashCryptoToken(tokens.refreshToken),
+                    expiresAt: getTokenExpirationDate(tokens.refreshToken),
+                },
+            },
+            { returnDocument: 'after' },
+        );
+
+        if (!session) {
+            throw new jwt.JsonWebTokenError('Invalid refresh token');
+        }
+
+        setRefreshCookie(res, tokens.refreshToken);
 
         res.status(200).json({
             message: 'Token refreshed successfully',
-            accessToken,
-            user,
+            accessToken: tokens.accessToken,
+            user: publicUser(user),
         });
     } catch (error) {
-        console.error('Refresh token error:', error);
-        res.status(401).json({ message: 'Invalid or expired refresh token' });
+        if (error instanceof jwt.JsonWebTokenError) {
+            res.status(401).json({ message: 'Invalid or expired session' });
+            return;
+        }
+
+        console.error('Session refresh failed');
+
+        res.status(503).json({
+            message: 'Could not refresh your session. Please try again.',
+        });
     }
 }
 
@@ -260,19 +261,49 @@ export async function RefreshToken(req: Request, res: Response): Promise<void> {
  * @description Clears the refresh token cookie.
  */
 export async function logout(req: Request, res: Response): Promise<void> {
-    const clearOpts = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax' as const,
-    };
-    res.clearCookie('refreshToken', { ...clearOpts, path: '/' });
-    // login/verify-email used to set this cookie with no explicit path,
-    // which browsers default to the request's own directory (/auth) rather
-    // than '/'. Clearing with no path here resolves to that same /auth
-    // default for a POST to /auth/logout, so this also catches any
-    // leftover cookie from before path:'/' was added to those two places.
-    res.clearCookie('refreshToken', clearOpts);
-    res.status(200).json({ message: 'Logout successful' });
+    try {
+        const credentials: TokenPayload[] = [];
+
+        const cookie = req.cookies?.refreshToken;
+
+        if (typeof cookie === 'string') {
+            try {
+                credentials.push(verifyRefreshToken(cookie));
+            } catch (error) {
+                if (!(error instanceof jwt.JsonWebTokenError)) throw error;
+            }
+        }
+
+        const header = req.headers.authorization;
+
+        if (header?.startsWith('Bearer ')) {
+            try {
+                credentials.push(verifyAccessToken(header.slice(7)));
+            } catch (error) {
+                if (!(error instanceof jwt.JsonWebTokenError)) throw error;
+            }
+        }
+
+        if (credentials.length > 0) {
+            await AuthSession.deleteMany({
+                $or: credentials.map((payload) => ({
+                    _id: payload.sessionId,
+                    user: payload.userId,
+                })),
+            });
+        }
+
+        // Clear only after database revocation succeeds.
+        clearRefreshCookie(res);
+
+        res.status(200).json({ message: 'Logout successful' });
+    } catch {
+        console.error('Logout failed');
+
+        res.status(503).json({
+            message: 'Could not sign out. Please try again.',
+        });
+    }
 }
 
 /**
@@ -405,43 +436,41 @@ export async function verifyEmailHandler(req: Request, res: Response) {
         }
         // update user's email verification status and delete the token and expiry
         // it is better to use $unset operator to remove the token and expiry fields from the document rather than setting them to null. because $unset will remove the fields from the document entirely, which can help prevent confusion and potential bugs down the line when checking for the existence of these fields and save space in the database.
-        await User.findByIdAndUpdate(
-            user.id,
+        // Consume the matching OTP once before creating a login.
+        const verifiedUser = await User.findOneAndUpdate(
             {
-                emailVerified: true,
+                _id: user._id,
+                emailVerified: false,
+                emailVerificationCode: user.emailVerificationCode,
+                emailVerificationCodeExpiry: { $gt: new Date() },
+            },
+            {
+                $set: { emailVerified: true },
                 $unset: {
-                    emailVerificationCode: 1,
-                    emailVerificationCodeExpiry: 1,
+                    emailVerificationCode: '',
+                    emailVerificationCodeExpiry: '',
                 },
             },
             { returnDocument: 'after' },
         );
-        // generate token pair after successful verification. now they gain access to protected routes immediately after verifying their email without needing to log in again because we set the auth state in the frontend after this mutation succeeds
-        const { accessToken, refreshToken } = generateTokenPair({
-            userId: user.id,
-            role: user.role as UserRole,
-            email: user.email,
-        });
-        // set refresh token in cookie
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-            path: '/',
-        });
-        // we need to send the access token back to the user
+
+        if (!verifiedUser) {
+            res.status(400).json({
+                message: 'Invalid or expired verification code',
+                code: 'INVALID_CODE',
+            });
+            return;
+        }
+
+        const { accessToken, refreshToken } =
+            await createLoginSession(verifiedUser);
+
+        setRefreshCookie(res, refreshToken);
+
         res.status(200).json({
             message: 'Email verified successfully',
             accessToken,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                emailVerified: true,
-                fName: user.fName,
-                lName: user.lName,
-            },
+            user: publicUser(verifiedUser),
         });
     } catch (error) {
         console.error('Email verification error:', error);
@@ -546,10 +575,9 @@ export async function resetPasswordHandler(req: Request, res: Response) {
             });
             return;
         }
-
         const result = await User.updateOne(
             { _id: reset.user, passwordHash: user.passwordHash },
-            { $set: { passwordHash } },
+            { $set: { passwordHash }, $inc: { authVersion: 1 } },
             { runValidators: true },
         );
 
@@ -560,7 +588,7 @@ export async function resetPasswordHandler(req: Request, res: Response) {
             });
             return;
         }
-
+        clearRefreshCookie(res);
         res.status(200).json({
             message: 'Password reset successfully. Please sign in.',
         });

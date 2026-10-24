@@ -1,146 +1,216 @@
-/**
- * @file lib/axios.ts
- *
- * Single axios instance used across the entire app.
- *
- *    so individual service functions never need to think about token expiry.
+import axios, {
+    AxiosError,
+    CanceledError,
+    InternalAxiosRequestConfig,
+} from 'axios';
+import { useAuthStore, type AuthUser } from '@/store/Auth.store';
 
- *
- * The refresh queue pattern:
- *  When multiple requests fail with 401 simultaneously (e.g. on page load
- *  several parallel fetches fire before the token is refreshed), we don't
- *  want to call /auth/refresh N times. Instead, the first 401 triggers the
- *  refresh; subsequent 401s are queued. Once the refresh resolves, the queue
- *  is flushed and all waiting requests are retried with the new token.
- */
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
 
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { useAuthStore } from '@/store/Auth.store';
-
-const BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
-
-export const apiClient = axios.create({
+const options = {
     baseURL: BASE_URL,
-    withCredentials: true, // ensures the refresh token cookie is sent on every request
+    withCredentials: true,
+    timeout: 15_000,
     headers: { 'Content-Type': 'application/json' },
-});
+};
 
-// Request interceptor 
-// Reads the current access token from Zustand and attaches it as a Bearer token..
-apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-    const token = useAuthStore.getState().accessToken;
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+export const apiClient = axios.create(options);
+
+// Separate transport prevents refresh from entering its own interceptor.
+const authTransport = axios.create(options);
+
+interface SessionResponse {
+    message: string;
+    user: AuthUser;
+    accessToken: string;
+}
+
+type TrackedRequest = InternalAxiosRequestConfig & {
+    _authEpoch?: number;
+    _retry?: boolean;
+};
+
+let authEpoch = 0;
+let changingAuth = false;
+let refreshFlight: Promise<SessionResponse> | null = null;
+
+function canceled() {
+    return new CanceledError('Authentication changed during the request');
+}
+
+function isPublicAuthRequest(url = '') {
+    const path = url.split('?')[0];
+
+    return [
+        '/auth/login',
+        '/auth/register',
+        '/auth/logout',
+        '/auth/refresh',
+        '/auth/forgot-password',
+        '/auth/reset-password',
+        '/auth/verify-email',
+        '/auth/resend-verification',
+    ].some((endpoint) => path.endsWith(endpoint));
+}
+
+export function isProtectedPath(path: string): boolean {
+    return ['/vault', '/watch', '/admin', '/kyc', '/settings'].some(
+        (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+    );
+}
+
+async function withCookieLock<T>(operation: () => Promise<T>): Promise<T> {
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+        return navigator.locks.request('mintd-auth-cookie', () => operation());
     }
+
+    return operation();
+}
+
+export function clearClientSession(): void {
+    authEpoch += 1;
+    useAuthStore.getState().clearAuth();
+}
+
+// Used for login, verification, logout and password reset.
+export async function runAuthChange<T>(
+    operation: () => Promise<T>,
+): Promise<T> {
+    if (changingAuth) throw canceled();
+
+    changingAuth = true;
+    authEpoch += 1;
+
+    try {
+        // Let an existing cookie response settle before changing cookies.
+        await refreshFlight?.catch(() => undefined);
+        return await withCookieLock(operation);
+    } finally {
+        changingAuth = false;
+    }
+}
+
+export function refreshSession(): Promise<SessionResponse> {
+    if (changingAuth) return Promise.reject(canceled());
+    if (refreshFlight) return refreshFlight;
+
+    const epoch = authEpoch;
+
+    const flight = withCookieLock(async () => {
+        if (changingAuth || epoch !== authEpoch) throw canceled();
+
+        const { data } =
+            await authTransport.post<SessionResponse>('/auth/refresh');
+
+        if (changingAuth || epoch !== authEpoch) throw canceled();
+
+        useAuthStore.getState().setAuth(data.user, data.accessToken);
+        return data;
+    })
+        .catch((error: unknown) => {
+            if (changingAuth || epoch !== authEpoch) throw canceled();
+
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                clearClientSession();
+            }
+
+            // Network errors and 503 responses do not mean "logged out".
+            throw error;
+        })
+        .finally(() => {
+            if (refreshFlight === flight) refreshFlight = null;
+        });
+
+    refreshFlight = flight;
+    return flight;
+}
+
+function redirectToLogin(): void {
+    if (
+        typeof window !== 'undefined' &&
+        isProtectedPath(window.location.pathname)
+    ) {
+        window.location.replace('/auth/login?reason=session_expired');
+    }
+}
+
+apiClient.interceptors.request.use((config: TrackedRequest) => {
+    if (changingAuth && !isPublicAuthRequest(config.url)) {
+        throw canceled();
+    }
+
+    config._authEpoch = authEpoch;
+
+    const token = useAuthStore.getState().accessToken;
+
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    else config.headers.delete('Authorization');
+
     return config;
 });
 
-// ─── 401 refresh queue ───────────────────────────────────────────────────────
-let isRefreshing = false;
-
-// Each entry in the queue is a pair of resolve/reject callbacks from a
-// Promise that wraps the failed request. When the refresh succeeds we
-// resolve every queued promise with the new token; on failure we reject them.
-type QueueEntry = {
-    resolve: (token: string) => void;
-    reject: (err: unknown) => void;
-};
-let failedQueue: QueueEntry[] = [];
-
-function processQueue(error: unknown, token: string | null) {
-    failedQueue.forEach((entry) => {
-        if (error) {
-            entry.reject(error);
-        } else {
-            entry.resolve(token!);
-        }
-    });
-    failedQueue = [];
-}
-
-// Response interceptor 
 apiClient.interceptors.response.use(
-    // Pass successful responses straight through.
-    (response) => response,
+    (response) => {
+        const config = response.config as TrackedRequest;
 
-    async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & {
-            _retry?: boolean;
-        };
-
-        // Only intercept 401s that haven't already been retried.
-        // Also skip the refresh endpoint itself to prevent an infinite loop
-        // if the refresh token is also invalid.
-        const isRefreshEndpoint =
-            originalRequest?.url?.includes('/auth/refresh');
-        
-        const isPublicAuthEndpoint = [
-            '/auth/login',
-            '/auth/register',
-            '/auth/forgot-password',
-            '/auth/verify-email',
-            '/auth/resend-verification',
-            "/auth/reset-password",
-        ].some((path) => originalRequest?.url?.includes(path));
+        // A late private response must not repopulate a signed-out cache.
         if (
-            error.response?.status !== 401 ||
-            originalRequest._retry ||
-            isRefreshEndpoint || isPublicAuthEndpoint
+            !isPublicAuthRequest(config.url) &&
+            config._authEpoch !== authEpoch
         ) {
-            return Promise.reject(error);
+            throw canceled();
         }
 
-        // Mark this request so we don't retry it again.
-        originalRequest._retry = true;
+        return response;
+    },
+    async (error: AxiosError) => {
+        const request = error.config as TrackedRequest | undefined;
 
-        if (isRefreshing) {
-            // Another request is already refreshing — queue this one.
-            return new Promise<string>((resolve, reject) => {
-                failedQueue.push({ resolve, reject });
-            })
-                .then((newToken) => {
-                    originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                    return apiClient(originalRequest);
-                })
-                .catch(Promise.reject);
+        if (!request || isPublicAuthRequest(request.url)) throw error;
+
+        if (changingAuth || request._authEpoch !== authEpoch) {
+            throw canceled();
         }
 
-        isRefreshing = true;
+        if (error.response?.status !== 401) throw error;
+
+        if (request._retry) {
+            clearClientSession();
+            redirectToLogin();
+            throw error;
+        }
+
+        request._retry = true;
+
+        // Another request may already have refreshed the old token.
+        const currentToken = useAuthStore.getState().accessToken;
+
+        if (
+            currentToken &&
+            request.headers.Authorization !== `Bearer ${currentToken}`
+        ) {
+            return apiClient(request);
+        }
 
         try {
-            // The refresh endpoint uses the httpOnly cookie automatically
-            // because withCredentials: true is set on the instance.
-            const { data } = await apiClient.post<{ accessToken: string }>(
-                '/auth/refresh',
-            );
-            const newToken = data.accessToken;
-
-            // Persist the new access token in Zustand.
-            useAuthStore.getState().setAccessToken(newToken);
-
-            // Update the Authorization header for the retried request.
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
-            // Flush the queue — all waiting requests get the new token.
-            processQueue(null, newToken);
-
-            return apiClient(originalRequest);
+            await refreshSession();
         } catch (refreshError) {
-            // Refresh failed (e.g. refresh token expired).
-            // Clear auth state and send the user to login.
-            processQueue(refreshError, null);
-            useAuthStore.getState().clearAuth();
-
-            // In Next.js we can't call router.push here because we're outside
-            // React. window.location is the safe escape hatch.
-            if (typeof window !== 'undefined') {
-                window.location.href = '/auth/login?reason=session_expired';
+            if (
+                axios.isAxiosError(refreshError) &&
+                refreshError.response?.status === 401 &&
+                !useAuthStore.getState().accessToken &&
+                !changingAuth
+            ) {
+                redirectToLogin();
             }
-            return Promise.reject(refreshError);
-        } finally {
-            isRefreshing = false;
+
+            throw refreshError;
         }
+
+        if (changingAuth || request._authEpoch !== authEpoch) {
+            throw canceled();
+        }
+
+        return apiClient(request);
     },
 );
-

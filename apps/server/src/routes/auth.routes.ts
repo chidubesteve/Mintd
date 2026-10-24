@@ -35,6 +35,11 @@ router.post(
 router.post('/forgot-password', passwordResetLimiter, forgotPasswordHandler);
 router.post('/reset-password', passwordResetLimiter, resetPasswordHandler);
 
-router.post('/logout', authMiddleware, logout);
+// Logout can use the refresh cookie even when the access token has expired.
+router.post('/logout', logout);
+
+router.get('/session', authMiddleware, (_req, res) => {
+    res.set('Cache-Control', 'no-store').status(204).end();
+});
 
 export default router;

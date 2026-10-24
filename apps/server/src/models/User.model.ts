@@ -17,7 +17,8 @@ const UserBaseSchema = new Schema(
             lowercase: true,
         },
         passwordHash: { type: String, required: true },
-
+        // Incremented when a password reset invalidates every existing login.
+        authVersion: { type: Number, required: true, default: 0, min: 0 },
         // email verification
         emailVerified: { type: Boolean, default: false },
         emailVerificationCode: { type: String, select: false }, //the hash would always be stored
