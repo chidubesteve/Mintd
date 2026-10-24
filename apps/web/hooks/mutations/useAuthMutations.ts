@@ -5,6 +5,7 @@ import {
     login,
     logout,
     register,
+    resetPassword,
     resendVerificationEmail,
     verifyEmailOtp,
 } from '@/services/Auth.service';
@@ -13,6 +14,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+
+type ResetPasswordVariables = { token: string; password: string };
 
 export function extractErrorMessage(error: AxiosError) {
     if (error instanceof AxiosError) {
@@ -92,6 +95,19 @@ export function useLogout() {
             clearAuth();
             router.push('/auth/login');
         },
+    });
+}
+
+export function useResetPassword() {
+    const router = useRouter();
+    return useMutation({
+        mutationFn: (variables: ResetPasswordVariables) => resetPassword(variables.token, variables.password),
+        onSuccess: ({message}) => {
+            toast.success(message);
+            router.push('/auth/login');
+        },
+        onError: (error) =>
+            toast.error(extractErrorMessage(error as AxiosError)),
     });
 }
 

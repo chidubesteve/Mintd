@@ -1,74 +1,69 @@
-"use client"
-import { useState } from 'react';
+'use client';
+import { Suspense, useState, type SubmitEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { useTheme } from 'next-themes';
 import iconDark from '@/public/logo-mixed.webp';
 import iconLight from '@/public/logo-mixed-green.webp';
-import { ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { AxiosError } from 'axios';
+import { useResetPassword } from '@/hooks/mutations/useAuthMutations';
 
 const ResetPassword = () => {
+    const searchParams = useSearchParams();
+    const token = searchParams.get('token');
+
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [verifying, setVerifying] = useState(true);
-    const [sessionValid, setSessionValid] = useState(false);
-    const router = useRouter();
-    const { resolvedTheme } = useTheme();
-    const iconSrc = resolvedTheme === 'light' ? iconLight : iconDark;
 
+    // Remember which token the server rejected. A different link
+    // can still be used without carrying over the previous error.
+    const [rejectedToken, setRejectedToken] = useState<string | null>(null);
 
-    const handleReset = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const reset = useResetPassword();
+    const loading = reset.isPending;
 
-        // if (password !== confirmPassword) {
-        //     toast.error("Passwords don't match", {
-        //         description: 'Please make sure both passwords are the same.',
-        //     });
-        //     return;
-        // }
+    const sessionValid =
+        token !== null &&
+        /^[a-f0-9]{64}$/.test(token) &&
+        rejectedToken !== token;
 
-        // if (password.length < 6) {
-        //     toast.error('Password too short', {
-        //         description: 'Password must be at least 6 characters.',
-        //     });
-        //     return;
-        // }
+    const handleReset = (event: SubmitEvent<HTMLFormElement>) => {
+        event.preventDefault();
 
-        // setLoading(true);
+        if (loading || !sessionValid || !token) return;
 
-        // if (error) {
-        //     toast.error("Something went wrong", {
-        //         description: error.message,
-        //     });
-        // } else {
-        //     toast({
-        //         title: 'Password updated',
-        //         description: 'Your password has been reset successfully.',
-        //     });
-        //     router.push('/vault');
-        // }
+        if (password !== confirmPassword) {
+            toast.error("Passwords don't match.");
+            return;
+        }
 
-        // setLoading(false);
-    };
+        if (password.length < 8 || password.length > 32) {
+            toast.error('Password must be between 8 and 32 characters.');
+            return;
+        }
 
-    if (verifying) {
-        return (
-            <div className='min-h-screen flex items-center justify-center bg-muted/30 p-6'>
-                <div className='text-center space-y-4'>
-                    <Loader2 className='w-8 h-8 animate-spin text-accent mx-auto' />
-                    <p className='text-muted-foreground text-sm'>
-                        Verifying reset link...
-                    </p>
-                </div>
-            </div>
+        reset.mutate(
+            { token, password },
+            {
+                onError: (error) => {
+                    if (error instanceof AxiosError) {
+                        const data = error.response?.data as
+                            | { code?: string }
+                            | undefined;
+
+                        if (data?.code === 'INVALID_TOKEN') {
+                            setRejectedToken(token);
+                        }
+                    }
+                },
+            },
         );
-    }
+    };
 
     if (!sessionValid) {
         return (
@@ -77,9 +72,16 @@ const ResetPassword = () => {
                     <div className='text-center mb-8'>
                         <Link href='/'>
                             <Image
-                                src={iconSrc}
+                                src={iconLight}
                                 alt='Mintd'
-                                className='h-12 mx-auto mb-6'
+                                className='block h-12 mx-auto mb-6 max-w-fit dark:hidden'
+                                loading='lazy'
+                            />
+                            <Image
+                                src={iconDark}
+                                alt='Mintd'
+                                className='hidden h-12 mx-auto mb-6 max-w-fit dark:block'
+                                loading='lazy'
                             />
                         </Link>
                         <h1 className='text-3xl font-bold text-foreground mb-2'>
@@ -100,7 +102,7 @@ const ResetPassword = () => {
                                 for security reasons. Please request a new one.
                             </p>
                         </div>
-                        <Link href='/forgot-password'>
+                        <Link href='/auth/forgot-password'>
                             <Button className='w-full h-12' size='lg'>
                                 Request New Reset Link
                             </Button>
@@ -117,9 +119,16 @@ const ResetPassword = () => {
                 <div className='text-center mb-8'>
                     <Link href='/'>
                         <Image
-                            src={iconSrc}
+                            src={iconDark}
                             alt='Mintd'
-                            className='h-12 mx-auto mb-6'
+                            className='block h-12 mx-auto mb-6 dark:hidden'
+                            loading='lazy'
+                        />
+                        <Image
+                            src={iconLight}
+                            alt='Mintd'
+                            className='hidden h-12 mx-auto mb-6 dark:block'
+                            loading='lazy'
                         />
                     </Link>
                     <h1 className='text-3xl font-bold text-foreground mb-2'>
@@ -147,7 +156,8 @@ const ResetPassword = () => {
                                 placeholder='Enter new password'
                                 className='h-12'
                                 required
-                                minLength={6}
+                                minLength={8}
+                                maxLength={32}
                             />
                         </div>
 
@@ -168,7 +178,8 @@ const ResetPassword = () => {
                                 placeholder='Confirm new password'
                                 className='h-12'
                                 required
-                                minLength={6}
+                                minLength={8}
+                                maxLength={32}
                             />
                         </div>
 
@@ -178,8 +189,10 @@ const ResetPassword = () => {
                             size='lg'
                             disabled={loading}
                         >
-                            <ShieldCheck className='w-4 h-4 mr-2' />
-                            {loading ? 'Updating...' : 'Update Password'}
+                            {loading ?? (
+                                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                            )}
+                            {loading ? 'Updating...' : 'Update Password'}{' '}
                         </Button>
                     </form>
                 </div>
@@ -188,4 +201,19 @@ const ResetPassword = () => {
     );
 };
 
-export default ResetPassword;
+export default function ResetPasswordPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className='min-h-screen flex items-center justify-center'>
+                    <Loader2
+                        className='w-8 h-8 animate-spin text-accent'
+                        aria-label='Loading password reset'
+                    />
+                </div>
+            }
+        >
+            <ResetPassword />
+        </Suspense>
+    );
+}

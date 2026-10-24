@@ -71,8 +71,8 @@ export async function resendVerificationEmail(
 export async function resetPassword(
     token: string,
     password: string,
-): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
+): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>(
         `/auth/reset-password`,
         { token, newPassword: password },
     );
