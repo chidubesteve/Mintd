@@ -27,6 +27,7 @@ const ResetPassword = () => {
     const {
         register,
         handleSubmit,
+        setError,
         formState: { errors },
     } = useForm<ResetPasswordFormValues>({
         resolver: zodResolver(resetPasswordFormSchema),
@@ -53,14 +54,27 @@ const ResetPassword = () => {
             { token, password: formData.password },
             {
                 onError: (error) => {
-                    if (error instanceof AxiosError) {
-                        const data = error.response?.data as
-                            | { code?: string }
-                            | undefined;
+                    if (!(error instanceof AxiosError)) return;
 
-                        if (data?.code === 'INVALID_TOKEN') {
-                            setRejectedToken(token);
-                        }
+                    const data = error.response?.data as
+                        | { code?: string; message?: string }
+                        | undefined;
+
+                    if (data?.code === 'INVALID_TOKEN') {
+                        setRejectedToken(token);
+                        return;
+                    }
+
+                    if (data?.code === 'PASSWORD_REUSED') {
+                        setError(
+                            'password',
+                            {
+                                type: 'server',
+                                message:
+                                    'Your new password must differ from your current password.',
+                            },
+                            { shouldFocus: true },
+                        );
                     }
                 },
             },
@@ -261,7 +275,7 @@ const ResetPassword = () => {
                             size='lg'
                             disabled={loading}
                         >
-                            {loading ?? (
+                            {loading && (
                                 <Loader2 className='w-4 h-4 mr-2 animate-spin' />
                             )}
                             {loading ? 'Updating...' : 'Update Password'}{' '}

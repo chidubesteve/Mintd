@@ -488,16 +488,42 @@ export async function resetPasswordHandler(req: Request, res: Response) {
         // hash the incomning token
         const tokenHash = hashCryptoToken(token);
 
-        // TTL cleanup may be delayed, so explicitly check expiry.
-        const exists = await PasswordReset.exists({
+        const resetRequest = await PasswordReset.findOne({
             tokenHash,
             expiresAt: { $gt: new Date() },
-        });
+        }).select('user');
 
-        if (!exists) {
+        if (!resetRequest) {
             res.status(400).json({
                 message: 'Invalid or expired reset link',
                 code: 'INVALID_TOKEN',
+            });
+            return;
+        }
+
+        const user = await User.findById(resetRequest.user).select(
+            '+passwordHash',
+        );
+
+        if (!user) {
+            res.status(400).json({
+                message: 'Invalid or expired reset link',
+                code: 'INVALID_TOKEN',
+            });
+            return;
+        }
+
+        // check if the new password is the same as the old password
+        const isSamePassword = await comparePassword(
+            newPassword,
+            user.passwordHash,
+        );
+
+        if (isSamePassword) {
+            res.status(400).json({
+                message:
+                    'New password cannot be the same as your current password',
+                code: 'PASSWORD_REUSED',
             });
             return;
         }
@@ -522,7 +548,7 @@ export async function resetPasswordHandler(req: Request, res: Response) {
         }
 
         const result = await User.updateOne(
-            { _id: reset.user },
+            { _id: reset.user, passwordHash: user.passwordHash },
             { $set: { passwordHash } },
             { runValidators: true },
         );
