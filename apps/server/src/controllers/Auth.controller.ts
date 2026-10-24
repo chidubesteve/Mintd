@@ -330,8 +330,8 @@ export async function forgotPasswordHandler(
 
         try {
             await sendPasswordResetEmail(
-                user.email,
                 user.fName,
+                user.email,
                 resetUrl.toString(),
             );
         } catch {

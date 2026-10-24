@@ -6,6 +6,7 @@ import {
     logout,
     register,
     resetPassword,
+    forgotPassword,
     resendVerificationEmail,
     verifyEmailOtp,
 } from '@/services/Auth.service';
@@ -101,8 +102,9 @@ export function useLogout() {
 export function useResetPassword() {
     const router = useRouter();
     return useMutation({
-        mutationFn: (variables: ResetPasswordVariables) => resetPassword(variables.token, variables.password),
-        onSuccess: ({message}) => {
+        mutationFn: (variables: ResetPasswordVariables) =>
+            resetPassword(variables.token, variables.password),
+        onSuccess: ({ message }) => {
             toast.success(message);
             router.push('/auth/login');
         },
@@ -110,7 +112,11 @@ export function useResetPassword() {
             toast.error(extractErrorMessage(error as AxiosError)),
     });
 }
-
+export function useForgotPassword() {
+    return useMutation({
+        mutationFn: (email: string) => forgotPassword(email),
+    });
+}
 export function useResendVerification() {
     return useMutation({
         mutationFn: (email: string) => resendVerificationEmail(email),

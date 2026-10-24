@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import iconDark from '@/public/logo-mixed.webp';
 import iconLight from '@/public/logo-mixed-green.webp';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { AxiosError } from 'axios';
 import { useResetPassword } from '@/hooks/mutations/useAuthMutations';
@@ -19,6 +19,8 @@ const ResetPassword = () => {
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Remember which token the server rejected. A different link
     // can still be used without carrying over the previous error.
@@ -119,15 +121,15 @@ const ResetPassword = () => {
                 <div className='text-center mb-8'>
                     <Link href='/'>
                         <Image
-                            src={iconDark}
+                            src={iconLight}
                             alt='Mintd'
-                            className='block h-12 mx-auto mb-6 dark:hidden'
+                            className='block h-12 mx-auto mb-6 dark:hidden max-w-fit'
                             loading='lazy'
                         />
                         <Image
-                            src={iconLight}
+                            src={iconDark}
                             alt='Mintd'
-                            className='hidden h-12 mx-auto mb-6 dark:block'
+                            className='hidden h-12 mx-auto mb-6 dark:block max-w-fit'
                             loading='lazy'
                         />
                     </Link>
@@ -148,17 +150,46 @@ const ResetPassword = () => {
                             >
                                 New Password
                             </Label>
-                            <Input
-                                id='password'
-                                type='password'
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder='Enter new password'
-                                className='h-12'
-                                required
-                                minLength={8}
-                                maxLength={32}
-                            />
+                            <div className='relative'>
+                                <Input
+                                    id='password'
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
+                                    placeholder='Enter new password'
+                                    className='h-12 pr-11'
+                                    required
+                                    minLength={8}
+                                    maxLength={32}
+                                />
+                                <button
+                                    type='button'
+                                    className='absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                                    onClick={() =>
+                                        setShowPassword((visible) => !visible)
+                                    }
+                                    aria-label={
+                                        showPassword
+                                            ? 'Hide password'
+                                            : 'Show password'
+                                    }
+                                    aria-pressed={showPassword}
+                                >
+                                    {showPassword ? (
+                                        <EyeOff
+                                            className='h-4 w-4'
+                                            aria-hidden='true'
+                                        />
+                                    ) : (
+                                        <Eye
+                                            className='h-4 w-4'
+                                            aria-hidden='true'
+                                        />
+                                    )}
+                                </button>
+                            </div>
                         </div>
 
                         <div className='space-y-2'>
@@ -168,19 +199,52 @@ const ResetPassword = () => {
                             >
                                 Confirm Password
                             </Label>
-                            <Input
-                                id='confirmPassword'
-                                type='password'
-                                value={confirmPassword}
-                                onChange={(e) =>
-                                    setConfirmPassword(e.target.value)
-                                }
-                                placeholder='Confirm new password'
-                                className='h-12'
-                                required
-                                minLength={8}
-                                maxLength={32}
-                            />
+                            <div className='relative'>
+                                <Input
+                                    id='confirmPassword'
+                                    type={
+                                        showConfirmPassword
+                                            ? 'text'
+                                            : 'password'
+                                    }
+                                    value={confirmPassword}
+                                    onChange={(e) =>
+                                        setConfirmPassword(e.target.value)
+                                    }
+                                    placeholder='Confirm new password'
+                                    className='h-12 pr-11'
+                                    required
+                                    minLength={8}
+                                    maxLength={32}
+                                />
+                                <button
+                                    type='button'
+                                    className='absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                                    onClick={() =>
+                                        setShowConfirmPassword(
+                                            (visible) => !visible,
+                                        )
+                                    }
+                                    aria-label={
+                                        showConfirmPassword
+                                            ? 'Hide password confirmation'
+                                            : 'Show password confirmation'
+                                    }
+                                    aria-pressed={showConfirmPassword}
+                                >
+                                    {showConfirmPassword ? (
+                                        <EyeOff
+                                            className='h-4 w-4'
+                                            aria-hidden='true'
+                                        />
+                                    ) : (
+                                        <Eye
+                                            className='h-4 w-4'
+                                            aria-hidden='true'
+                                        />
+                                    )}
+                                </button>
+                            </div>
                         </div>
 
                         <Button
