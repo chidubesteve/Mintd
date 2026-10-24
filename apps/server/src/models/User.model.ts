@@ -23,16 +23,12 @@ const UserBaseSchema = new Schema(
         emailVerificationCode: { type: String, select: false }, //the hash would always be stored
         emailVerificationCodeExpiry: { type: Date, select: false },
 
-        // password reset
-        passwordResetToken: { type: String, select: false },
-        passwordResetTokenExpiry: { type: Date, select: false },
         role: { type: String, required: true, enum: ['COLLECTOR', 'ADMIN'] },
     },
     { timestamps: true, discriminatorKey: 'role' },
 );
-// immediately delete expired email verification tokens and password reset tokens using TTL index
-UserBaseSchema.index({ emailVerificationTokenExpiry: 1 }, { expireAfterSeconds: 0 });
-UserBaseSchema.index({ passwordResetTokenExpiry: 1 }, { expireAfterSeconds: 0 });
+// Users are permanent. Temporary reset records have their own TTL collection.
+    
 export const User = model('User', UserBaseSchema);
 
 export type BaseUserType = InferSchemaType<typeof UserBaseSchema>;

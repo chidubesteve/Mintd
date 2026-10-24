@@ -73,8 +73,8 @@ export async function resetPassword(
     password: string,
 ): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>(
-        `/auth/reset-password?token=${token}`,
-        { password },
+        `/auth/reset-password`,
+        { token, newPassword: password },
     );
     return response.data;
 }

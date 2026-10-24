@@ -21,6 +21,7 @@ import {
 } from '../utils/Email.utils';
 import { generateOTP, hashOTP, verifyOTP } from '../utils/otp.utils';
 import { Kyc } from '../models/Kyc.model';
+import { PasswordReset } from '../models/PasswordReset.model';
 
 export const getAppUrl = () => {
     return process.env.NODE_ENV === 'production'
@@ -282,10 +283,10 @@ export async function forgotPasswordHandler(
     req: Request,
     res: Response,
 ): Promise<void> {
-    const { email } = req.body;
+    const { email } = req.body ?? {};
 
-    if (!email) {
-        res.status(400).json({ message: 'Email is required' });
+    if (typeof email !== 'string' || !email.trim() || email.length > 254) {
+        res.status(400).json({ message: 'A valid email is required' });
         return;
     }
 
@@ -301,25 +302,50 @@ export async function forgotPasswordHandler(
             res.status(200).json(genericResponse);
             return;
         }
-        // generate token, raw goes in email. hash goes in DB - if db is ever compromised they have the hash
+
+        const frontendUrl = process.env.FRONTEND_URL?.split(',')[0].trim();
+
+        if (!frontendUrl) {
+            throw new Error('FRONTEND_URL is not configured');
+        }
+        // generate token, raw goes in email. hash goes in DB
         // send email with password reset link
         const rawToken = generateCryptoToken();
-        const hashedToken = hashCryptoToken(rawToken);
-        const tokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
+        const tokenHash = hashCryptoToken(rawToken);
 
-        // store the hash and expiry in the DB
-        await User.findByIdAndUpdate(user.id, {
-            passwordResetToken: hashedToken,
-            passwordResetTokenExpiry: tokenExpiry,
-        });
+        const resetUrl = new URL('/auth/reset-password', frontendUrl);
+        resetUrl.searchParams.set('token', rawToken);
 
-        // send email
-        const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password?token=${rawToken}`;
-        await sendPasswordResetEmail(user.email, user.fName, resetUrl);
-        res.status(200).json({ message: 'Password reset email sent' });
+        // Replace any previous reset link for this user.
+        await PasswordReset.updateOne(
+            { user: user._id },
+            {
+                $set: {
+                    tokenHash,
+                    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+                },
+            },
+            { upsert: true, runValidators: true },
+        );
+
+        try {
+            await sendPasswordResetEmail(
+                user.email,
+                user.fName,
+                resetUrl.toString(),
+            );
+        } catch {
+            await PasswordReset.deleteOne({ user: user._id, tokenHash });
+            console.error('Password reset email delivery failed');
+        }
+
+        // keep the response generic  for existing and missing accounts
+        res.status(200).json(genericResponse);
     } catch (error) {
-        // we've responded already, so just log error
-        console.error('[forgotPassword] Error sending reset email:', error);
+        res.status(503).json({
+            message: 'Could not request a reset link. Please try again.',
+            code: 'EMAIL_SEND_FAILED',
+        });
     }
 }
 /**
@@ -436,68 +462,98 @@ export async function verifyEmailHandler(req: Request, res: Response) {
  */
 export async function resetPasswordHandler(req: Request, res: Response) {
     // get the email for the user object when called from inside the app - by an authenticated user
-    const { token, newPassword } = req.body;
+    const { token, newPassword } = req.body ?? {};
 
-    if (!token || !newPassword) {
+    if (
+        typeof token !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(token)
+        
+    ) {
         res.status(400).json({
-            message: 'Token and new password are required',
+            message: 'Invalid or expired reset link',
+            code: 'INVALID_TOKEN',
         });
+
         return;
     }
 
-    if (newPassword.length < 8 || newPassword.length > 32) {
+    if (
+        typeof newPassword !== 'string' ||
+        newPassword.length < 8 ||
+        newPassword.length > 32
+    ) {
         res.status(400).json({
             message: 'Password must be between 8 and 32 characters',
+            code: 'INVALID_PASSWORD',
         });
         return;
     }
 
     try {
         // hash the incomning token
-        const hashedToken = hashCryptoToken(token);
+        const tokenHash = hashCryptoToken(token);
 
-        // find the user who's request token matches and hasn't expired
-        const user = await User.findOne({
-            passwordResetToken: hashedToken,
-        }).select('+passwordResetTokenHash +passwordResetTokenExpiry'); // select the passwordResetTokenHash and passwordResetTokenExpiry fields
+        // TTL cleanup may be delayed, so explicitly check expiry.
+        const exists = await PasswordReset.exists({
+            tokenHash,
+            expiresAt: { $gt: new Date() },
+        });
 
-        if (!user) {
+        if (!exists) {
             res.status(400).json({
-                message: 'Invalid or expired reset token',
+                message: 'Invalid or expired reset link',
                 code: 'INVALID_TOKEN',
             });
             return;
         }
 
-        // check the expiry of the token from the DB
-        if (
-            !user.passwordResetTokenExpiry ||
-            user.passwordResetTokenExpiry < new Date()
-        ) {
+        const passwordHash = await hashPassword(newPassword);
+
+        // Recheck expiry after hashing.
+        // Find-and-delete consumes the token atomically:
+        // only one concurrent request can receive this record.
+
+        const reset = await PasswordReset.findOneAndDelete({
+            tokenHash,
+            expiresAt: { $gt: new Date() },
+        });
+
+        if (!reset) {
             res.status(400).json({
-                message: 'Reset token has expired, please request a new one',
-                code: 'EXPIRED_TOKEN',
+                message: 'Invalid or expired reset link',
+                code: 'INVALID_TOKEN',
             });
+            return;
         }
 
-        const newHash = await hashPassword(newPassword);
+        const result = await User.updateOne(
+            { _id: reset.user },
+            { $set: { passwordHash } },
+            { runValidators: true },
+        );
 
-        // update the user's password and clear the reset tokens in one operation
-        // $unset removes the fields entirely from the document, instead of setting them to null
-        await User.findByIdAndUpdate(user.id, {
-            passwordHash: newHash,
-            $unset: { passwordResetToken: 1, passwordResetTokenExpiry: 1 },
+        if (result.matchedCount !== 1) {
+            res.status(400).json({
+                message: 'Invalid or expired reset link',
+                code: 'INVALID_TOKEN',
+            });
+            return;
+        }
+
+        res.status(200).json({
+            message:
+                'Password reset successfully. Please sign in.',
+        });
+    } catch {
+        console.error('Password reset failed');
+
+        res.status(503).json({
+            message:
+                'Could not reset your password. Please request a new link.',
         });
 
-        res.status(200).json({ message: 'Password reset successfully' });
-        //
-    } catch (error) {
-        console.error('Reset password error:', error);
-        res.status(500).json({
-            message: 'Internal server error',
-            code: 'SERVER_ERROR',
-        });
-    }
+
+    } 
 }
 /**
  * @function resendVerificationCodeHandler
