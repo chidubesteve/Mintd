@@ -22,6 +22,7 @@ import {
 import { generateOTP, hashOTP, verifyOTP } from '../utils/otp.utils';
 import { Kyc } from '../models/Kyc.model';
 import { PasswordReset } from '../models/PasswordReset.model';
+import { isStrongPassword } from '../utils/passwordValidation';
 
 export const getAppUrl = () => {
     return process.env.NODE_ENV === 'production'
@@ -48,11 +49,12 @@ export async function signupHandler(req: Request, res: Response) {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
-        if (8 > password.length || password.length > 32) {
+        if (!isStrongPassword(password)) {
             return res
                 .status(400)
                 .json({
-                    message: 'Password must be between 8 and 32 characters',
+                    message:
+                        'Password must be 8 to 32 characters and include an uppercase letter, a lowercase letter, a number, and a special character',
                 });
         }
 
@@ -464,11 +466,7 @@ export async function resetPasswordHandler(req: Request, res: Response) {
     // get the email for the user object when called from inside the app - by an authenticated user
     const { token, newPassword } = req.body ?? {};
 
-    if (
-        typeof token !== 'string' ||
-        !/^[a-f0-9]{64}$/.test(token)
-        
-    ) {
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
         res.status(400).json({
             message: 'Invalid or expired reset link',
             code: 'INVALID_TOKEN',
@@ -477,13 +475,10 @@ export async function resetPasswordHandler(req: Request, res: Response) {
         return;
     }
 
-    if (
-        typeof newPassword !== 'string' ||
-        newPassword.length < 8 ||
-        newPassword.length > 32
-    ) {
+    if (!isStrongPassword(newPassword)) {
         res.status(400).json({
-            message: 'Password must be between 8 and 32 characters',
+            message:
+                'Password must be 8 to 32 characters and include an uppercase letter, a lowercase letter, a number, and a special character',
             code: 'INVALID_PASSWORD',
         });
         return;
@@ -541,8 +536,7 @@ export async function resetPasswordHandler(req: Request, res: Response) {
         }
 
         res.status(200).json({
-            message:
-                'Password reset successfully. Please sign in.',
+            message: 'Password reset successfully. Please sign in.',
         });
     } catch {
         console.error('Password reset failed');
@@ -551,9 +545,7 @@ export async function resetPasswordHandler(req: Request, res: Response) {
             message:
                 'Could not reset your password. Please request a new link.',
         });
-
-
-    } 
+    }
 }
 /**
  * @function resendVerificationCodeHandler

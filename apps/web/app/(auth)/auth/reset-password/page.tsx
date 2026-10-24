@@ -1,26 +1,38 @@
 'use client';
-import { Suspense, useState, type SubmitEvent } from 'react';
+import { Suspense, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { toast } from 'sonner';
 import iconDark from '@/public/logo-mixed.webp';
 import iconLight from '@/public/logo-mixed-green.webp';
 import { AlertTriangle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { AxiosError } from 'axios';
 import { useResetPassword } from '@/hooks/mutations/useAuthMutations';
+import {
+    resetPasswordFormSchema,
+    type ResetPasswordFormValues,
+} from './validation/schema';
 
 const ResetPassword = () => {
     const searchParams = useSearchParams();
     const token = searchParams.get('token');
 
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm<ResetPasswordFormValues>({
+        resolver: zodResolver(resetPasswordFormSchema),
+        defaultValues: { password: '', confirmPassword: '' },
+        mode: 'onChange',
+    });
 
     // Remember which token the server rejected. A different link
     // can still be used without carrying over the previous error.
@@ -34,23 +46,11 @@ const ResetPassword = () => {
         /^[a-f0-9]{64}$/.test(token) &&
         rejectedToken !== token;
 
-    const handleReset = (event: SubmitEvent<HTMLFormElement>) => {
-        event.preventDefault();
-
+    const handleReset = (formData: ResetPasswordFormValues) => {
         if (loading || !sessionValid || !token) return;
 
-        if (password !== confirmPassword) {
-            toast.error("Passwords don't match.");
-            return;
-        }
-
-        if (password.length < 8 || password.length > 32) {
-            toast.error('Password must be between 8 and 32 characters.');
-            return;
-        }
-
         reset.mutate(
-            { token, password },
+            { token, password: formData.password },
             {
                 onError: (error) => {
                     if (error instanceof AxiosError) {
@@ -142,7 +142,11 @@ const ResetPassword = () => {
                 </div>
 
                 <div className='bg-card rounded-2xl p-8 shadow-luxury border border-border space-y-6'>
-                    <form onSubmit={handleReset} className='space-y-4'>
+                    <form
+                        noValidate
+                        onSubmit={handleSubmit(handleReset)}
+                        className='space-y-4'
+                    >
                         <div className='space-y-2'>
                             <Label
                                 htmlFor='password'
@@ -154,15 +158,12 @@ const ResetPassword = () => {
                                 <Input
                                     id='password'
                                     type={showPassword ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={(e) =>
-                                        setPassword(e.target.value)
-                                    }
                                     placeholder='Enter new password'
                                     className='h-12 pr-11'
                                     required
                                     minLength={8}
                                     maxLength={32}
+                                    {...register('password')}
                                 />
                                 <button
                                     type='button'
@@ -190,6 +191,11 @@ const ResetPassword = () => {
                                     )}
                                 </button>
                             </div>
+                            {errors.password && (
+                                <p className='text-xs text-red-500'>
+                                    {errors.password.message}
+                                </p>
+                            )}
                         </div>
 
                         <div className='space-y-2'>
@@ -207,15 +213,12 @@ const ResetPassword = () => {
                                             ? 'text'
                                             : 'password'
                                     }
-                                    value={confirmPassword}
-                                    onChange={(e) =>
-                                        setConfirmPassword(e.target.value)
-                                    }
                                     placeholder='Confirm new password'
                                     className='h-12 pr-11'
                                     required
                                     minLength={8}
                                     maxLength={32}
+                                    {...register('confirmPassword')}
                                 />
                                 <button
                                     type='button'
@@ -245,6 +248,11 @@ const ResetPassword = () => {
                                     )}
                                 </button>
                             </div>
+                            {errors.confirmPassword && (
+                                <p className='text-xs text-red-500'>
+                                    {errors.confirmPassword.message}
+                                </p>
+                            )}
                         </div>
 
                         <Button

@@ -1,7 +1,9 @@
 import z from 'zod';
+import { emailSchema, passwordSchema } from '../../validation/schema';
+
 export const loginFormSchema = z.object({
-    email: z.string().email('Enter a valid email address'),
-    password: z.string().min(1, 'Password is required'),
+    email: emailSchema,
+    password: passwordSchema,
 });
 
 export type LoginFormValues = z.infer<typeof loginFormSchema>;

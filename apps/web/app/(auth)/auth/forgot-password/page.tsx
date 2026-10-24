@@ -1,5 +1,7 @@
 'use client';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,24 +17,36 @@ import iconDark from '@/public/logo-mixed.webp';
 import iconLight from '@/public/logo-mixed-green.webp';
 import { Mail, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
+import {
+    forgotPasswordFormSchema,
+    type ForgotPasswordFormValues,
+} from './validation/schema';
 
 const ForgotPassword = () => {
-    const [email, setEmail] = useState('');
+    const [submittedEmail, setSubmittedEmail] = useState('');
     const requestReset = useForgotPassword();
     const loading = requestReset.isPending;
     const [sent, setSent] = useState(false);
+    const {
+        register,
+        handleSubmit: handleFormSubmit,
+        formState: { errors },
+    } = useForm<ForgotPasswordFormValues>({
+        resolver: zodResolver(forgotPasswordFormSchema),
+        defaultValues: { email: '' },
+        mode: 'onBlur',
+    });
     const { resolvedTheme } = useTheme();
     const iconSrc = resolvedTheme === 'light' ? iconLight : iconDark;
 
-    const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
-        event.preventDefault();
-
+    const handleSubmit = async ({ email }: ForgotPasswordFormValues) => {
         if (loading) return;
 
         try {
-            await requestReset.mutateAsync(email.trim());
+            await requestReset.mutateAsync(email);
 
             // Show confirmation only after the API request succeeds.
+            setSubmittedEmail(email);
             setSent(true);
         } catch (error) {
             toast.error(extractErrorMessage(error as AxiosError));
@@ -73,7 +87,7 @@ const ForgotPassword = () => {
                                 <p className='text-xs text-muted-foreground'>
                                     If an account exists for{' '}
                                     <span className='font-medium text-foreground'>
-                                        {email}
+                                        {submittedEmail}
                                     </span>
                                     , you&apos;ll receive a password reset link.
                                     Please check your inbox and spam folder.
@@ -83,6 +97,7 @@ const ForgotPassword = () => {
                                 Didn&apos;t receive the email? Check your spam
                                 folder or{' '}
                                 <button
+                                    type='button'
                                     onClick={() => setSent(false)}
                                     className='text-accent hover:underline font-medium'
                                 >
@@ -91,7 +106,11 @@ const ForgotPassword = () => {
                             </p>
                         </div>
                     ) : (
-                        <form onSubmit={handleSubmit} className='space-y-4'>
+                        <form
+                            noValidate
+                            onSubmit={handleFormSubmit(handleSubmit)}
+                            className='space-y-4'
+                        >
                             <div className='space-y-2'>
                                 <Label
                                     htmlFor='email'
@@ -102,13 +121,18 @@ const ForgotPassword = () => {
                                 <Input
                                     id='email'
                                     type='email'
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
                                     placeholder='your@email.com'
                                     className='h-12'
                                     required
                                     disabled={loading}
+                                    maxLength={254}
+                                    {...register('email')}
                                 />
+                                {errors.email && (
+                                    <p className='text-xs text-red-500'>
+                                        {errors.email.message}
+                                    </p>
+                                )}
                             </div>
 
                             <Button
