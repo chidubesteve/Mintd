@@ -134,6 +134,10 @@ function redirectToLogin(): void {
     }
 }
 
+export function isAuthChangeInProgress(): boolean {
+    return changingAuth;
+}
+
 apiClient.interceptors.request.use((config: TrackedRequest) => {
     if (changingAuth && !isPublicAuthRequest(config.url)) {
         throw canceled();
