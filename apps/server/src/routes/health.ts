@@ -4,20 +4,21 @@ import { Router } from 'express';
 const router: Router = express.Router();
 
 router.get('/', (req, res) => {
+    const startedAt = process.hrtime.bigint();
     const healthCheck = {
         uptime: process.uptime(),
         message: 'OK',
         timestamp: Date.now(),
-        responseTime: process.hrtime.bigint(),
+        responseTime: Number(process.hrtime.bigint() - startedAt) / 1_000_000,
     };
     try {
-        res.send(healthCheck);
+        res.json({ healthCheck });
     } catch (error) {
         healthCheck.message =
             error instanceof Error ? error.message : String(error);
         console.error('Health check error:', error); // Optional: Log for debugging
-        res.status(500).send(healthCheck); // Send response even on error
+        res.status(500).json(healthCheck); // Send response even on error
     }
 });
 
-export default router; 
+export default router;

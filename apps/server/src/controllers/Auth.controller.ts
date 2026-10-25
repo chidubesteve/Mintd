@@ -13,7 +13,10 @@ import {
     hashCryptoToken,
     hashPassword,
     verifyRefreshToken,
+    verifyAccessToken,
+    getTokenExpirationDate,
 } from '../utils/Auth.utils';
+import type { TokenPayload } from '../utils/Auth.utils';
 import {
     sendPasswordResetEmail,
     sendResentVerificationEmail,
@@ -21,6 +24,16 @@ import {
 } from '../utils/Email.utils';
 import { generateOTP, hashOTP, verifyOTP } from '../utils/otp.utils';
 import { Kyc } from '../models/Kyc.model';
+import { PasswordReset } from '../models/PasswordReset.model';
+import { isStrongPassword } from '../utils/passwordValidation';
+import { AuthSession } from '../models/AuthSession.model';
+import jwt from 'jsonwebtoken';
+import {
+    clearRefreshCookie,
+    createLoginSession,
+    publicUser,
+    setRefreshCookie,
+} from '../services/AuthSession.service';
 
 export const getAppUrl = () => {
     return process.env.NODE_ENV === 'production'
@@ -47,11 +60,12 @@ export async function signupHandler(req: Request, res: Response) {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
-        if (8 > password.length || password.length > 32) {
+        if (!isStrongPassword(password)) {
             return res
                 .status(400)
                 .json({
-                    message: 'Password must be between 8 and 32 characters',
+                    message:
+                        'Password must be 8 to 32 characters and include an uppercase letter, a lowercase letter, a number, and a special character',
                 });
         }
 
@@ -78,7 +92,6 @@ export async function signupHandler(req: Request, res: Response) {
             emailVerificationCode: otpHash,
             emailVerificationCodeExpiry: otpExpiry,
         });
-        console.log('collector', collector);
 
         // send verification email, fire-and-forget: a delivery failure must not
         // block account creation or redirect the user away from verify screen
@@ -155,48 +168,14 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        // generate tokens
-        const { accessToken, refreshToken } = generateTokenPair({
-            userId: user.id,
-            role: user.role as UserRole,
-            email: user.email,
-        });
+        const { accessToken, refreshToken } = await createLoginSession(user);
 
-        // token rotation - reissue refresh token
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: '/',
-        });
-
-        // Return role-appropriate user shape.
-        // Collectors get their kycStatus — they need it to know whether
-        // they can proceed to watch registration.
-        // Admins just get the basics.
-        const userData =
-            user.role === 'COLLECTOR'
-                ? {
-                      id: user.id,
-                      fName: user.fName,
-                      lName: user.lName,
-                      email: user.email,
-                      role: user.role,
-                      kycStatus: (user as unknown as CollectorType).kycStatus,
-                  }
-                : {
-                      id: user._id.toString(),
-                      fName: user.fName,
-                      lName: user.lName,
-                      email: user.email,
-                      role: user.role,
-                  };
+        setRefreshCookie(res, refreshToken);
 
         res.status(200).json({
             message: 'Login successful',
             accessToken,
-            user: userData,
+            user: publicUser(user),
         });
     } catch (error) {
         console.error('Login error:', error);
@@ -205,50 +184,75 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
 }
 
 export async function RefreshToken(req: Request, res: Response): Promise<void> {
+    res.set('Cache-Control', 'no-store');
+
     try {
-        const { refreshToken } = req.cookies;
+        const rawToken = req.cookies?.refreshToken;
 
-        if (!refreshToken) {
-            res.status(401).json({ message: 'Refresh token not found' });
-            return;
+        if (typeof rawToken !== 'string') {
+            throw new jwt.JsonWebTokenError('Missing refresh token');
         }
 
-        // verify refresh token
-        const payload = verifyRefreshToken(refreshToken);
+        const payload = verifyRefreshToken(rawToken);
 
-        // check if user exists
         const user = await User.findById(payload.userId);
-        if (!user) {
-            res.status(401).json({ message: 'User not found' });
-            return;
+
+        if (
+            !user ||
+            !user.emailVerified ||
+            (user.authVersion ?? 0) !== payload.authVersion
+        ) {
+            throw new jwt.JsonWebTokenError('Revoked login');
         }
 
-        // issue new tokens(pair)
-        const { accessToken, refreshToken: newRefreshToken } =
-            generateTokenPair({
-                userId: user.id,
-                role: user.role as UserRole,
-                email: user.email,
-            });
-
-        //overwrite the cookie with the new refresh token
-
-        res.cookie('refreshToken', newRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: '/',
+        const tokens = generateTokenPair({
+            userId: user.id,
+            role: user.role as UserRole,
+            email: user.email,
+            sessionId: payload.sessionId,
+            authVersion: payload.authVersion,
         });
+
+        // Only the currently stored refresh token may rotate this session.
+        // Updating an existing record cannot recreate a deleted session.
+        const session = await AuthSession.findOneAndUpdate(
+            {
+                _id: payload.sessionId,
+                user: user._id,
+                refreshHash: hashCryptoToken(rawToken),
+                expiresAt: { $gt: new Date() },
+            },
+            {
+                $set: {
+                    refreshHash: hashCryptoToken(tokens.refreshToken),
+                    expiresAt: getTokenExpirationDate(tokens.refreshToken),
+                },
+            },
+            { returnDocument: 'after' },
+        );
+
+        if (!session) {
+            throw new jwt.JsonWebTokenError('Invalid refresh token');
+        }
+
+        setRefreshCookie(res, tokens.refreshToken);
 
         res.status(200).json({
             message: 'Token refreshed successfully',
-            accessToken,
-            user,
+            accessToken: tokens.accessToken,
+            user: publicUser(user),
         });
     } catch (error) {
-        console.error('Refresh token error:', error);
-        res.status(401).json({ message: 'Invalid or expired refresh token' });
+        if (error instanceof jwt.JsonWebTokenError) {
+            res.status(401).json({ message: 'Invalid or expired session' });
+            return;
+        }
+
+        console.error('Session refresh failed');
+
+        res.status(503).json({
+            message: 'Could not refresh your session. Please try again.',
+        });
     }
 }
 
@@ -257,19 +261,49 @@ export async function RefreshToken(req: Request, res: Response): Promise<void> {
  * @description Clears the refresh token cookie.
  */
 export async function logout(req: Request, res: Response): Promise<void> {
-    const clearOpts = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax' as const,
-    };
-    res.clearCookie('refreshToken', { ...clearOpts, path: '/' });
-    // login/verify-email used to set this cookie with no explicit path,
-    // which browsers default to the request's own directory (/auth) rather
-    // than '/'. Clearing with no path here resolves to that same /auth
-    // default for a POST to /auth/logout, so this also catches any
-    // leftover cookie from before path:'/' was added to those two places.
-    res.clearCookie('refreshToken', clearOpts);
-    res.status(200).json({ message: 'Logout successful' });
+    try {
+        const credentials: TokenPayload[] = [];
+
+        const cookie = req.cookies?.refreshToken;
+
+        if (typeof cookie === 'string') {
+            try {
+                credentials.push(verifyRefreshToken(cookie));
+            } catch (error) {
+                if (!(error instanceof jwt.JsonWebTokenError)) throw error;
+            }
+        }
+
+        const header = req.headers.authorization;
+
+        if (header?.startsWith('Bearer ')) {
+            try {
+                credentials.push(verifyAccessToken(header.slice(7)));
+            } catch (error) {
+                if (!(error instanceof jwt.JsonWebTokenError)) throw error;
+            }
+        }
+
+        if (credentials.length > 0) {
+            await AuthSession.deleteMany({
+                $or: credentials.map((payload) => ({
+                    _id: payload.sessionId,
+                    user: payload.userId,
+                })),
+            });
+        }
+
+        // Clear only after database revocation succeeds.
+        clearRefreshCookie(res);
+
+        res.status(200).json({ message: 'Logout successful' });
+    } catch {
+        console.error('Logout failed');
+
+        res.status(503).json({
+            message: 'Could not sign out. Please try again.',
+        });
+    }
 }
 
 /**
@@ -282,10 +316,10 @@ export async function forgotPasswordHandler(
     req: Request,
     res: Response,
 ): Promise<void> {
-    const { email } = req.body;
+    const { email } = req.body ?? {};
 
-    if (!email) {
-        res.status(400).json({ message: 'Email is required' });
+    if (typeof email !== 'string' || !email.trim() || email.length > 254) {
+        res.status(400).json({ message: 'A valid email is required' });
         return;
     }
 
@@ -301,25 +335,50 @@ export async function forgotPasswordHandler(
             res.status(200).json(genericResponse);
             return;
         }
-        // generate token, raw goes in email. hash goes in DB - if db is ever compromised they have the hash
+
+        const frontendUrl = process.env.FRONTEND_URL?.split(',')[0].trim();
+
+        if (!frontendUrl) {
+            throw new Error('FRONTEND_URL is not configured');
+        }
+        // generate token, raw goes in email. hash goes in DB
         // send email with password reset link
         const rawToken = generateCryptoToken();
-        const hashedToken = hashCryptoToken(rawToken);
-        const tokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
+        const tokenHash = hashCryptoToken(rawToken);
 
-        // store the hash and expiry in the DB
-        await User.findByIdAndUpdate(user.id, {
-            passwordResetToken: hashedToken,
-            passwordResetTokenExpiry: tokenExpiry,
-        });
+        const resetUrl = new URL('/auth/reset-password', frontendUrl);
+        resetUrl.searchParams.set('token', rawToken);
 
-        // send email
-        const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password?token=${rawToken}`;
-        await sendPasswordResetEmail(user.email, user.fName, resetUrl);
-        res.status(200).json({ message: 'Password reset email sent' });
+        // Replace any previous reset link for this user.
+        await PasswordReset.updateOne(
+            { user: user._id },
+            {
+                $set: {
+                    tokenHash,
+                    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+                },
+            },
+            { upsert: true, runValidators: true },
+        );
+
+        try {
+            await sendPasswordResetEmail(
+                user.fName,
+                user.email,
+                resetUrl.toString(),
+            );
+        } catch {
+            await PasswordReset.deleteOne({ user: user._id, tokenHash });
+            console.error('Password reset email delivery failed');
+        }
+
+        // keep the response generic  for existing and missing accounts
+        res.status(200).json(genericResponse);
     } catch (error) {
-        // we've responded already, so just log error
-        console.error('[forgotPassword] Error sending reset email:', error);
+        res.status(503).json({
+            message: 'Could not request a reset link. Please try again.',
+            code: 'EMAIL_SEND_FAILED',
+        });
     }
 }
 /**
@@ -377,43 +436,41 @@ export async function verifyEmailHandler(req: Request, res: Response) {
         }
         // update user's email verification status and delete the token and expiry
         // it is better to use $unset operator to remove the token and expiry fields from the document rather than setting them to null. because $unset will remove the fields from the document entirely, which can help prevent confusion and potential bugs down the line when checking for the existence of these fields and save space in the database.
-        await User.findByIdAndUpdate(
-            user.id,
+        // Consume the matching OTP once before creating a login.
+        const verifiedUser = await User.findOneAndUpdate(
             {
-                emailVerified: true,
+                _id: user._id,
+                emailVerified: false,
+                emailVerificationCode: user.emailVerificationCode,
+                emailVerificationCodeExpiry: { $gt: new Date() },
+            },
+            {
+                $set: { emailVerified: true },
                 $unset: {
-                    emailVerificationCode: 1,
-                    emailVerificationCodeExpiry: 1,
+                    emailVerificationCode: '',
+                    emailVerificationCodeExpiry: '',
                 },
             },
             { returnDocument: 'after' },
         );
-        // generate token pair after successful verification. now they gain access to protected routes immediately after verifying their email without needing to log in again because we set the auth state in the frontend after this mutation succeeds
-        const { accessToken, refreshToken } = generateTokenPair({
-            userId: user.id,
-            role: user.role as UserRole,
-            email: user.email,
-        });
-        // set refresh token in cookie
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-            path: '/',
-        });
-        // we need to send the access token back to the user
+
+        if (!verifiedUser) {
+            res.status(400).json({
+                message: 'Invalid or expired verification code',
+                code: 'INVALID_CODE',
+            });
+            return;
+        }
+
+        const { accessToken, refreshToken } =
+            await createLoginSession(verifiedUser);
+
+        setRefreshCookie(res, refreshToken);
+
         res.status(200).json({
             message: 'Email verified successfully',
             accessToken,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                emailVerified: true,
-                fName: user.fName,
-                lName: user.lName,
-            },
+            user: publicUser(verifiedUser),
         });
     } catch (error) {
         console.error('Email verification error:', error);
@@ -436,66 +493,111 @@ export async function verifyEmailHandler(req: Request, res: Response) {
  */
 export async function resetPasswordHandler(req: Request, res: Response) {
     // get the email for the user object when called from inside the app - by an authenticated user
-    const { token, newPassword } = req.body;
+    const { token, newPassword } = req.body ?? {};
 
-    if (!token || !newPassword) {
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
         res.status(400).json({
-            message: 'Token and new password are required',
+            message: 'Invalid or expired reset link',
+            code: 'INVALID_TOKEN',
         });
+
         return;
     }
 
-    if (newPassword.length < 8 || newPassword.length > 32) {
+    if (!isStrongPassword(newPassword)) {
         res.status(400).json({
-            message: 'Password must be between 8 and 32 characters',
+            message:
+                'Password must be 8 to 32 characters and include an uppercase letter, a lowercase letter, a number, and a special character',
+            code: 'INVALID_PASSWORD',
         });
         return;
     }
 
     try {
         // hash the incomning token
-        const hashedToken = hashCryptoToken(token);
+        const tokenHash = hashCryptoToken(token);
 
-        // find the user who's request token matches and hasn't expired
-        const user = await User.findOne({
-            passwordResetToken: hashedToken,
-        }).select('+passwordResetTokenHash +passwordResetTokenExpiry'); // select the passwordResetTokenHash and passwordResetTokenExpiry fields
+        const resetRequest = await PasswordReset.findOne({
+            tokenHash,
+            expiresAt: { $gt: new Date() },
+        }).select('user');
 
-        if (!user) {
+        if (!resetRequest) {
             res.status(400).json({
-                message: 'Invalid or expired reset token',
+                message: 'Invalid or expired reset link',
                 code: 'INVALID_TOKEN',
             });
             return;
         }
 
-        // check the expiry of the token from the DB
-        if (
-            !user.passwordResetTokenExpiry ||
-            user.passwordResetTokenExpiry < new Date()
-        ) {
+        const user = await User.findById(resetRequest.user).select(
+            '+passwordHash',
+        );
+
+        if (!user) {
             res.status(400).json({
-                message: 'Reset token has expired, please request a new one',
-                code: 'EXPIRED_TOKEN',
+                message: 'Invalid or expired reset link',
+                code: 'INVALID_TOKEN',
             });
+            return;
         }
 
-        const newHash = await hashPassword(newPassword);
+        // check if the new password is the same as the old password
+        const isSamePassword = await comparePassword(
+            newPassword,
+            user.passwordHash,
+        );
 
-        // update the user's password and clear the reset tokens in one operation
-        // $unset removes the fields entirely from the document, instead of setting them to null
-        await User.findByIdAndUpdate(user.id, {
-            passwordHash: newHash,
-            $unset: { passwordResetToken: 1, passwordResetTokenExpiry: 1 },
+        if (isSamePassword) {
+            res.status(400).json({
+                message:
+                    'New password cannot be the same as your current password',
+                code: 'PASSWORD_REUSED',
+            });
+            return;
+        }
+
+        const passwordHash = await hashPassword(newPassword);
+
+        // Recheck expiry after hashing.
+        // Find-and-delete consumes the token atomically:
+        // only one concurrent request can receive this record.
+
+        const reset = await PasswordReset.findOneAndDelete({
+            tokenHash,
+            expiresAt: { $gt: new Date() },
         });
 
-        res.status(200).json({ message: 'Password reset successfully' });
-        //
-    } catch (error) {
-        console.error('Reset password error:', error);
-        res.status(500).json({
-            message: 'Internal server error',
-            code: 'SERVER_ERROR',
+        if (!reset) {
+            res.status(400).json({
+                message: 'Invalid or expired reset link',
+                code: 'INVALID_TOKEN',
+            });
+            return;
+        }
+        const result = await User.updateOne(
+            { _id: reset.user, passwordHash: user.passwordHash },
+            { $set: { passwordHash }, $inc: { authVersion: 1 } },
+            { runValidators: true },
+        );
+
+        if (result.matchedCount !== 1) {
+            res.status(400).json({
+                message: 'Invalid or expired reset link',
+                code: 'INVALID_TOKEN',
+            });
+            return;
+        }
+        clearRefreshCookie(res);
+        res.status(200).json({
+            message: 'Password reset successfully. Please sign in.',
+        });
+    } catch {
+        console.error('Password reset failed');
+
+        res.status(503).json({
+            message:
+                'Could not reset your password. Please request a new link.',
         });
     }
 }

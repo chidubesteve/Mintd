@@ -11,18 +11,22 @@ export default function AdminLayout({
 }) {
     const router = useRouter();
     const user = useAuthStore((s) => s.user);
-    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-
+    const authenticated = useAuthStore((state) =>
+        Boolean(state.user && state.accessToken),
+    );
     useEffect(() => {
-        // By the time this layout mounts, SessionProvider (a parent of
-        // (main)/layout.tsx) has already finished rehydrating the session,
-        // so the store is settled — no separate loading state needed here.
-        if (!isAuthenticated() || user?.role !== 'ADMIN') {
+        if (!authenticated) {
+            router.replace('/auth/login');
+        } else if (user?.role !== 'ADMIN') {
             router.replace('/vault');
         }
-    }, [isAuthenticated, user, router]);
+    }, [authenticated, user?.role, router]);
 
-    if (!isAuthenticated() || user?.role !== 'ADMIN') {
+    if (!authenticated || user?.role !== 'ADMIN') {
+        return null;
+    }
+
+    if (!authenticated || user?.role !== 'ADMIN') {
         return null;
     }
 

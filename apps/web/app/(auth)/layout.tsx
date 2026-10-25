@@ -44,7 +44,6 @@ import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import QueryProvider from '@/providers/QueryProvider';
-import { Toaster } from 'sonner';
 
 export const metadata: Metadata = { title: 'Mintd — Authentication' };
 
@@ -59,7 +58,6 @@ export default function AuthLayout({
                 <TooltipProvider>
                     <main>{children}</main>
                 </TooltipProvider>
-                <Toaster />
             </ThemeProvider>
         </QueryProvider>
     );

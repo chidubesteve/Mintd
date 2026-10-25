@@ -1,74 +1,85 @@
-"use client"
-import { useState } from 'react';
+'use client';
+import { Suspense, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
-import { useTheme } from 'next-themes';
+import { useSearchParams } from 'next/navigation';
 import iconDark from '@/public/logo-mixed.webp';
 import iconLight from '@/public/logo-mixed-green.webp';
-import { ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { AxiosError } from 'axios';
+import { useResetPassword } from '@/hooks/mutations/useAuthMutations';
+import {
+    resetPasswordFormSchema,
+    type ResetPasswordFormValues,
+} from './validation/schema';
 
 const ResetPassword = () => {
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [verifying, setVerifying] = useState(true);
-    const [sessionValid, setSessionValid] = useState(false);
-    const router = useRouter();
-    const { resolvedTheme } = useTheme();
-    const iconSrc = resolvedTheme === 'light' ? iconLight : iconDark;
+    const searchParams = useSearchParams();
+    const token = searchParams.get('token');
 
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const {
+        register,
+        handleSubmit,
+        setError,
+        formState: { errors },
+    } = useForm<ResetPasswordFormValues>({
+        resolver: zodResolver(resetPasswordFormSchema),
+        defaultValues: { password: '', confirmPassword: '' },
+        mode: 'onChange',
+    });
 
-    const handleReset = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Remember which token the server rejected. A different link
+    // can still be used without carrying over the previous error.
+    const [rejectedToken, setRejectedToken] = useState<string | null>(null);
 
-        // if (password !== confirmPassword) {
-        //     toast.error("Passwords don't match", {
-        //         description: 'Please make sure both passwords are the same.',
-        //     });
-        //     return;
-        // }
+    const reset = useResetPassword();
+    const loading = reset.isPending;
 
-        // if (password.length < 6) {
-        //     toast.error('Password too short', {
-        //         description: 'Password must be at least 6 characters.',
-        //     });
-        //     return;
-        // }
+    const sessionValid =
+        token !== null &&
+        /^[a-f0-9]{64}$/.test(token) &&
+        rejectedToken !== token;
 
-        // setLoading(true);
+    const handleReset = (formData: ResetPasswordFormValues) => {
+        if (loading || !sessionValid || !token) return;
 
-        // if (error) {
-        //     toast.error("Something went wrong", {
-        //         description: error.message,
-        //     });
-        // } else {
-        //     toast({
-        //         title: 'Password updated',
-        //         description: 'Your password has been reset successfully.',
-        //     });
-        //     router.push('/vault');
-        // }
+        reset.mutate(
+            { token, password: formData.password },
+            {
+                onError: (error) => {
+                    if (!(error instanceof AxiosError)) return;
 
-        // setLoading(false);
-    };
+                    const data = error.response?.data as
+                        | { code?: string; message?: string }
+                        | undefined;
 
-    if (verifying) {
-        return (
-            <div className='min-h-screen flex items-center justify-center bg-muted/30 p-6'>
-                <div className='text-center space-y-4'>
-                    <Loader2 className='w-8 h-8 animate-spin text-accent mx-auto' />
-                    <p className='text-muted-foreground text-sm'>
-                        Verifying reset link...
-                    </p>
-                </div>
-            </div>
+                    if (data?.code === 'INVALID_TOKEN') {
+                        setRejectedToken(token);
+                        return;
+                    }
+
+                    if (data?.code === 'PASSWORD_REUSED') {
+                        setError(
+                            'password',
+                            {
+                                type: 'server',
+                                message:
+                                    'Your new password must differ from your current password.',
+                            },
+                            { shouldFocus: true },
+                        );
+                    }
+                },
+            },
         );
-    }
+    };
 
     if (!sessionValid) {
         return (
@@ -77,9 +88,16 @@ const ResetPassword = () => {
                     <div className='text-center mb-8'>
                         <Link href='/'>
                             <Image
-                                src={iconSrc}
+                                src={iconLight}
                                 alt='Mintd'
-                                className='h-12 mx-auto mb-6'
+                                className='block h-12 mx-auto mb-6 max-w-fit dark:hidden'
+                                loading='lazy'
+                            />
+                            <Image
+                                src={iconDark}
+                                alt='Mintd'
+                                className='hidden h-12 mx-auto mb-6 max-w-fit dark:block'
+                                loading='lazy'
                             />
                         </Link>
                         <h1 className='text-3xl font-bold text-foreground mb-2'>
@@ -100,7 +118,7 @@ const ResetPassword = () => {
                                 for security reasons. Please request a new one.
                             </p>
                         </div>
-                        <Link href='/forgot-password'>
+                        <Link href='/auth/forgot-password'>
                             <Button className='w-full h-12' size='lg'>
                                 Request New Reset Link
                             </Button>
@@ -117,9 +135,16 @@ const ResetPassword = () => {
                 <div className='text-center mb-8'>
                     <Link href='/'>
                         <Image
-                            src={iconSrc}
+                            src={iconLight}
                             alt='Mintd'
-                            className='h-12 mx-auto mb-6'
+                            className='block h-12 mx-auto mb-6 dark:hidden max-w-fit'
+                            loading='lazy'
+                        />
+                        <Image
+                            src={iconDark}
+                            alt='Mintd'
+                            className='hidden h-12 mx-auto mb-6 dark:block max-w-fit'
+                            loading='lazy'
                         />
                     </Link>
                     <h1 className='text-3xl font-bold text-foreground mb-2'>
@@ -131,7 +156,11 @@ const ResetPassword = () => {
                 </div>
 
                 <div className='bg-card rounded-2xl p-8 shadow-luxury border border-border space-y-6'>
-                    <form onSubmit={handleReset} className='space-y-4'>
+                    <form
+                        noValidate
+                        onSubmit={handleSubmit(handleReset)}
+                        className='space-y-4'
+                    >
                         <div className='space-y-2'>
                             <Label
                                 htmlFor='password'
@@ -139,16 +168,48 @@ const ResetPassword = () => {
                             >
                                 New Password
                             </Label>
-                            <Input
-                                id='password'
-                                type='password'
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder='Enter new password'
-                                className='h-12'
-                                required
-                                minLength={6}
-                            />
+                            <div className='relative'>
+                                <Input
+                                    id='password'
+                                    type={showPassword ? 'text' : 'password'}
+                                    placeholder='Enter new password'
+                                    className='h-12 pr-11'
+                                    required
+                                    minLength={8}
+                                    maxLength={32}
+                                    {...register('password')}
+                                />
+                                <button
+                                    type='button'
+                                    className='absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                                    onClick={() =>
+                                        setShowPassword((visible) => !visible)
+                                    }
+                                    aria-label={
+                                        showPassword
+                                            ? 'Hide password'
+                                            : 'Show password'
+                                    }
+                                    aria-pressed={showPassword}
+                                >
+                                    {showPassword ? (
+                                        <EyeOff
+                                            className='h-4 w-4'
+                                            aria-hidden='true'
+                                        />
+                                    ) : (
+                                        <Eye
+                                            className='h-4 w-4'
+                                            aria-hidden='true'
+                                        />
+                                    )}
+                                </button>
+                            </div>
+                            {errors.password && (
+                                <p className='text-xs text-red-500'>
+                                    {errors.password.message}
+                                </p>
+                            )}
                         </div>
 
                         <div className='space-y-2'>
@@ -158,18 +219,54 @@ const ResetPassword = () => {
                             >
                                 Confirm Password
                             </Label>
-                            <Input
-                                id='confirmPassword'
-                                type='password'
-                                value={confirmPassword}
-                                onChange={(e) =>
-                                    setConfirmPassword(e.target.value)
-                                }
-                                placeholder='Confirm new password'
-                                className='h-12'
-                                required
-                                minLength={6}
-                            />
+                            <div className='relative'>
+                                <Input
+                                    id='confirmPassword'
+                                    type={
+                                        showConfirmPassword
+                                            ? 'text'
+                                            : 'password'
+                                    }
+                                    placeholder='Confirm new password'
+                                    className='h-12 pr-11'
+                                    required
+                                    minLength={8}
+                                    maxLength={32}
+                                    {...register('confirmPassword')}
+                                />
+                                <button
+                                    type='button'
+                                    className='absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                                    onClick={() =>
+                                        setShowConfirmPassword(
+                                            (visible) => !visible,
+                                        )
+                                    }
+                                    aria-label={
+                                        showConfirmPassword
+                                            ? 'Hide password confirmation'
+                                            : 'Show password confirmation'
+                                    }
+                                    aria-pressed={showConfirmPassword}
+                                >
+                                    {showConfirmPassword ? (
+                                        <EyeOff
+                                            className='h-4 w-4'
+                                            aria-hidden='true'
+                                        />
+                                    ) : (
+                                        <Eye
+                                            className='h-4 w-4'
+                                            aria-hidden='true'
+                                        />
+                                    )}
+                                </button>
+                            </div>
+                            {errors.confirmPassword && (
+                                <p className='text-xs text-red-500'>
+                                    {errors.confirmPassword.message}
+                                </p>
+                            )}
                         </div>
 
                         <Button
@@ -178,8 +275,10 @@ const ResetPassword = () => {
                             size='lg'
                             disabled={loading}
                         >
-                            <ShieldCheck className='w-4 h-4 mr-2' />
-                            {loading ? 'Updating...' : 'Update Password'}
+                            {loading && (
+                                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                            )}
+                            {loading ? 'Updating...' : 'Update Password'}{' '}
                         </Button>
                     </form>
                 </div>
@@ -188,4 +287,19 @@ const ResetPassword = () => {
     );
 };
 
-export default ResetPassword;
+export default function ResetPasswordPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className='min-h-screen flex items-center justify-center'>
+                    <Loader2
+                        className='w-8 h-8 animate-spin text-accent'
+                        aria-label='Loading password reset'
+                    />
+                </div>
+            }
+        >
+            <ResetPassword />
+        </Suspense>
+    );
+}

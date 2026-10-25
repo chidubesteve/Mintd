@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Button } from './ui/button';
 import { TbDeviceWatchPlus } from 'react-icons/tb';
@@ -25,6 +26,7 @@ import {
 
 import { useAuthStore } from '@/store/Auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
+import { useSessionStatus } from '@/providers/SessionProvider';
 
 import logoSrc from '@/public/logo-and-name-mixed.webp';
 import logoMobileSrc from '@/public/logo-mixed.webp';
@@ -63,10 +65,12 @@ const ADMIN_NAV: NavLink[] = [
 
 const Header = () => {
     const pathname = usePathname();
+    const { status } = useSessionStatus();
     const { user, isAuthenticated } = useAuthStore();
     const { mutate: logoutUser, isPending: isLoggingOut } = useLogout();
-    const { theme, setTheme, resolvedTheme } = useTheme();
+    const { setTheme, resolvedTheme } = useTheme();
     const isDark = resolvedTheme === 'dark';
+    const accountUnknown = status === 'checking' || status === 'unavailable';
     const isAdmin = user?.role === 'ADMIN';
     const navLinks = isAdmin ? ADMIN_NAV : VAULT_NAV;
 
@@ -120,9 +124,18 @@ const Header = () => {
 
                 {/* Right side */}
                 <div className='flex items-center gap-2'>
-                    {isAuthenticated() && user ? (
+                    {accountUnknown ? (
+                        <div
+                            className='flex h-10 items-center gap-2'
+                            aria-busy={status === 'checking'}
+                            aria-label='Loading account controls'
+                        >
+                            <Skeleton className='h-10 w-22 rounded-md' />
+                            <Skeleton className='h-10 w-28 rounded-md' />
+                        </div>
+                    ) : isAuthenticated() && user ? (
                         // ── Authenticated state ─────────────────────────────
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                                 <button className='flex items-center gap-2 rounded-full p-1.25 hover:bg-primary-foreground/10 dark:hover:bg-foreground/10 transition-colors'>
                                     {/* Avatar with initials */}
