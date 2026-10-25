@@ -12,7 +12,6 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import QueryProvider from '@/providers/QueryProvider';
 import SessionProvider, { SessionGate } from '@/providers/SessionProvider';
-import { Toaster } from 'sonner';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -32,7 +31,6 @@ export default function MainLayout({
                         </main>
                         <Footer />
                     </TooltipProvider>
-                    <Toaster position='bottom-right' />
                 </SessionProvider>
             </ThemeProvider>
         </QueryProvider>
