@@ -51,8 +51,12 @@ const KycSchema = new Schema(
         // When the admin completed their review. Distinct from updatedAt because
         // updatedAt changes on any field update, not specifically on review completion.
         reviewedAt: { type: Date },
-        // Third-party KYC provider integration metadata.
-        provider: { type: String, default: 'getID' },
+        // Third-party KYC provider integration metadata. 'didit' is the only
+        // provider actually wired up (see Didit.utils.ts) — the old 'getID'
+        // default predates that decision.
+        provider: { type: String, default: 'didit' },
+        // Didit's session id for this submission. Used to match an inbound
+        // webhook event back to this document.
         referenceId: { type: String, default: null },
     },
     {

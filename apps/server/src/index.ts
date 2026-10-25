@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './routes';
+import webhooksRoutes from './routes/webhooks.routes';
 import { connectDB } from './config/db';
 
 dotenv.config();
@@ -37,6 +38,17 @@ app.use(
 );
 
 app.use(helmet());
+
+// Mounted before express.json() and with its own raw-body parser: Didit's
+// webhook signature is an HMAC over the exact bytes they sent, and the
+// global JSON parser below would consume (and re-serialize) the body
+// before a handler on this path ever saw it, breaking that check.
+app.use(
+    '/api/webhooks',
+    express.raw({ type: '*/*' }),
+    webhooksRoutes,
+);
+
 app.use(express.json());
 app.use(cookieParser());
 
