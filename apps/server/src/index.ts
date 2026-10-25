@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './routes';
 import { connectDB } from './config/db';
+import ngrok from '@ngrok/ngrok';
 
 dotenv.config();
 
@@ -42,9 +43,30 @@ app.use(cookieParser());
 
 connectDB();
 
+app.get('/', (_req, res) => {
+    res.json({
+        service: 'Mintd API',
+        message: 'API is running',
+        endpoints: { api: '/api/', health: '/api/health' },
+    });
+});
+
 app.use('/api', apiRoutes);
 
-const PORT = process.env.PORT || 5000;
+async function forwardToApp() {
+    const forwarder = await ngrok.forward({
+        addr: `localhost:${PORT}`,
+        authtoken_from_env: true,
+        domain: 'remission-agile-eastbound.ngrok-free.dev',
+    });
+    console.log(`Available at: ${forwarder.url()}`);
+}
+
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+});
+
+forwardToApp().catch((error: unknown) => {
+    console.error('Failed to start ngrok tunnel:', error);
 });

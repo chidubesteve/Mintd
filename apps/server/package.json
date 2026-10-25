@@ -17,6 +17,7 @@
     "license": "ISC",
     "dependencies": {
         "@imagekit/nodejs": "^7.3.0",
+        "@ngrok/ngrok": "^1.7.0",
         "@react-email/components": "^1.0.10",
         "bcryptjs": "^3.0.3",
         "cookie-parser": "^1.4.7",

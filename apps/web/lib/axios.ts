@@ -5,13 +5,16 @@ import axios, {
 } from 'axios';
 import { useAuthStore, type AuthUser } from '@/store/Auth.store';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
 
 const options = {
     baseURL: BASE_URL,
     withCredentials: true,
     timeout: 15_000,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+    },
 };
 
 export const apiClient = axios.create(options);

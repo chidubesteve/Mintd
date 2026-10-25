@@ -6,6 +6,14 @@ import adminRoutes from './admin.routes';
 
 const router = Router();
 
+router.get('/', (_req, res) => {
+    res.json({
+        service: 'Mintd API',
+        message: 'API is running',
+        endpoints: { health: '/api/health' },
+    });
+});
+
 router.use('/health', healthCheckRoute);
 router.use('/auth', authRoutes);
 router.use('/watches', watchRoutes);
