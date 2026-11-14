@@ -7,7 +7,6 @@ import cookieParser from 'cookie-parser';
 import apiRoutes from './routes';
 import webhooksRoutes from './routes/webhooks.routes';
 import { connectDB } from './config/db';
-import ngrok from '@ngrok/ngrok';
 
 dotenv.config();
 
@@ -65,20 +64,8 @@ app.get('/', (_req, res) => {
 
 app.use('/api', apiRoutes);
 
-async function forwardToApp() {
-    const forwarder = await ngrok.forward({
-        addr: `localhost:${PORT}`,
-        authtoken_from_env: true,
-        domain: 'remission-agile-eastbound.ngrok-free.dev',
-    });
-    console.log(`Available at: ${forwarder.url()}`);
-}
-
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-forwardToApp().catch((error: unknown) => {
-    console.error('Failed to start ngrok tunnel:', error);
-});
