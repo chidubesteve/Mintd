@@ -5,6 +5,8 @@ import {
     login,
     logout,
     register,
+    resetPassword,
+    forgotPassword,
     resendVerificationEmail,
     verifyEmailOtp,
 } from '@/services/Auth.service';
@@ -13,6 +15,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+
+type ResetPasswordVariables = { token: string; password: string };
 
 export function extractErrorMessage(error: AxiosError) {
     if (error instanceof AxiosError) {
@@ -77,24 +81,48 @@ export function useLogin() {
 }
 
 export function useLogout() {
-    const clearAuth = useAuthStore((s) => s.clearAuth);
     const router = useRouter();
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: logout,
-        onSuccess: () => {
-            clearAuth();
-            queryClient.clear();
-            router.push('/auth/login');
+        onMutate: async () => {
+            await queryClient.cancelQueries();
         },
-        onError: () => {
-            clearAuth();
-            router.push('/auth/login');
+        onSuccess: () => {
+            queryClient.clear();
+            router.replace('/auth/login');
+        },
+        onError: (error) => {
+            toast.error(extractErrorMessage(error as AxiosError));
         },
     });
 }
 
+export function useResetPassword() {
+    const router = useRouter();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (variables: ResetPasswordVariables) =>
+            resetPassword(variables.token, variables.password),
+        onMutate: async () => {
+            await queryClient.cancelQueries();
+        },
+        onSuccess: ({ message }) => {
+            queryClient.clear();
+            toast.success(message);
+            router.replace('/auth/login');
+        },
+        onError: (error) =>
+            toast.error(extractErrorMessage(error as AxiosError)),
+    });
+}
+export function useForgotPassword() {
+    return useMutation({
+        mutationFn: (email: string) => forgotPassword(email),
+    });
+}
 export function useResendVerification() {
     return useMutation({
         mutationFn: (email: string) => resendVerificationEmail(email),

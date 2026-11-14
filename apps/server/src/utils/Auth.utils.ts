@@ -11,6 +11,8 @@ export interface TokenPayload {
     userId: string;
     role: 'COLLECTOR' | 'ADMIN';
     email: string;
+    sessionId: string; // Unique identifier for the session, used to invalidate tokens if needed
+    authVersion: number; // Incremented when a password reset invalidates every existing login
 }
 
 const SALT_ROUNDS = 12;
@@ -45,21 +47,61 @@ function getRefreshSecret(): string {
 }
 
 export function generateTokenPair(payload: TokenPayload): TokenPair {
-    const accessToken = jwt.sign(payload, getAccessSecret(), {
-        expiresIn: '15m',
-    });
-    const refreshToken = jwt.sign(payload, getRefreshSecret(), {
-        expiresIn: '7d',
-    });
+    const accessToken = jwt.sign(
+        { ...payload, kind: 'access' },
+        getAccessSecret(),
+        { algorithm: 'HS256', expiresIn: '15m', jwtid: crypto.randomUUID() },
+    );
+
+    const refreshToken = jwt.sign(
+        { ...payload, kind: 'refresh' },
+        getRefreshSecret(),
+        { algorithm: 'HS256', expiresIn: '7d', jwtid: crypto.randomUUID() },
+    );
+
     return { accessToken, refreshToken };
 }
 
+function verifyToken(
+    token: string,
+    secret: string,
+    kind: 'access' | 'refresh',
+): TokenPayload {
+    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
+
+    if (
+        typeof decoded === 'string' ||
+        decoded.kind !== kind ||
+        typeof decoded.userId !== 'string' ||
+        !/^[a-f0-9]{24}$/i.test(decoded.userId) ||
+        typeof decoded.sessionId !== 'string' ||
+        decoded.sessionId.length !== 36 ||
+        typeof decoded.authVersion !== 'number' ||
+        !Number.isSafeInteger(decoded.authVersion) ||
+        decoded.authVersion < 0 ||
+        !['COLLECTOR', 'ADMIN'].includes(decoded.role) ||
+        typeof decoded.email !== 'string' ||
+        typeof decoded.exp !== 'number'
+    ) {
+        throw new jwt.JsonWebTokenError('Invalid token claims');
+    }
+
+    // Return only application claims, not exp/iat/jti.
+    return {
+        userId: decoded.userId,
+        role: decoded.role,
+        email: decoded.email,
+        sessionId: decoded.sessionId,
+        authVersion: decoded.authVersion,
+    };
+}
+
 export function verifyAccessToken(token: string): TokenPayload {
-    return jwt.verify(token, getAccessSecret()) as TokenPayload;
+    return verifyToken(token, getAccessSecret(), 'access');
 }
 
 export function verifyRefreshToken(token: string): TokenPayload {
-    return jwt.verify(token, getRefreshSecret()) as TokenPayload;
+    return verifyToken(token, getRefreshSecret(), 'refresh');
 }
 
 export function generateCryptoToken(): string {

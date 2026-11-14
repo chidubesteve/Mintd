@@ -5,7 +5,9 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './routes';
+import webhooksRoutes from './routes/webhooks.routes';
 import { connectDB } from './config/db';
+import ngrok from '@ngrok/ngrok';
 
 dotenv.config();
 
@@ -37,14 +39,46 @@ app.use(
 );
 
 app.use(helmet());
+
+// Mounted before express.json() and with its own raw-body parser: Didit's
+// webhook signature is an HMAC over the exact bytes they sent, and the
+// global JSON parser below would consume (and re-serialize) the body
+// before a handler on this path ever saw it, breaking that check.
+app.use(
+    '/api/webhooks',
+    express.raw({ type: '*/*' }),
+    webhooksRoutes,
+);
+
 app.use(express.json());
 app.use(cookieParser());
 
 connectDB();
 
+app.get('/', (_req, res) => {
+    res.json({
+        service: 'Mintd API',
+        message: 'API is running',
+        endpoints: { api: '/api/', health: '/api/health' },
+    });
+});
+
 app.use('/api', apiRoutes);
 
-const PORT = process.env.PORT || 5000;
+async function forwardToApp() {
+    const forwarder = await ngrok.forward({
+        addr: `localhost:${PORT}`,
+        authtoken_from_env: true,
+        domain: 'remission-agile-eastbound.ngrok-free.dev',
+    });
+    console.log(`Available at: ${forwarder.url()}`);
+}
+
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+});
+
+forwardToApp().catch((error: unknown) => {
+    console.error('Failed to start ngrok tunnel:', error);
 });
